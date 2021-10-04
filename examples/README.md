@@ -43,8 +43,8 @@ ID & Access Token                  | [Retrieve ID / Access token from the IdP](.
 Access Token to Proxied Backend    | [Pass bearer access token to proxied backend](./use-case/01-access-web-and-tokens/README.md#call-proxied-backend-service-with-access-token)
 PKCE w/ IdPs (AWS, OneLogin, Okta) | [Access web page based on OIDC-PKCE workflow](./use-case/02-pkce/README.md)
 User Information w/ Access Token   | [Retrieve user info from the IdP using bearer access token](./use-case/03-user-info/README.md)
-Login                              | Log-in via the IdP (TBD).
-Logout                             | Log-out via web page (TBD).
+Login                              | Log-in via the IdP.
+Logout                             | Log-out via web page.
 Refresh Token                      | Update and retrieve ID / Access token via refresh token (TBD).
 
 ## NGINX Plus OIDC Test Tool
