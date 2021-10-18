@@ -6,7 +6,7 @@ LABEL maintainer="NGINX Docker Maintainers <docker-maint@nginx.com>"
 # Uncomment this block and the versioned nginxPackages in the main RUN
 # instruction to install a specific release
 # https://docs.nginx.com/nginx/releases/
-ENV NGINX_VERSION 24
+ENV NGINX_VERSION 25
 # https://nginx.org/en/docs/njs/changes.html
 ENV NJS_VERSION   0.6.2
 # https://plus-pkgs.nginx.com

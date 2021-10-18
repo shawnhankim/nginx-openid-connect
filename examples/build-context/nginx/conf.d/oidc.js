@@ -28,6 +28,7 @@ export default {
     validateIdToken,
     validateAccessToken,
     logout,
+    redirectBase,
     testExtractBearerToken
 };
 
@@ -152,6 +153,11 @@ function logout(r) {
     } else {
         r.return(302, r.variables.oidc_logout_redirect);
     }
+}
+
+// Redirect base URI after logging in IDP
+function redirectBase(r) {
+    r.return(302, r.variables.redirect_base)
 }
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -337,7 +343,6 @@ function handleSuccessfulTokenResponse(r, res) {
         } else {
             r.warn('OIDC no refresh token');
         }
-
         // Set cookie with request ID that is the key of each ID/access token,
         // and continue to process the original request.
         r.log('OIDC success, creating session '    + r.variables.request_id);
