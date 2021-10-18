@@ -333,7 +333,7 @@ function handleSuccessfulTokenResponse(r, res) {
         }
 
         // Add opaque ID token and access token to key/value store
-        r.variables.new_session      = tokenset.id_token;
+        r.variables.new_id_token     = tokenset.id_token;
         r.variables.new_access_token = tokenset.access_token;
 
         // Add new refresh token to key/value store
