@@ -142,9 +142,9 @@ function validateAccessToken(r) {
 // - https://openid.net/specs/openid-connect-rpinitiated-1_0.html#RedirectionAfterLogout
 function logout(r) {
     r.log('OIDC logout for ' + r.variables.cookie_auth_token);
-    var idToken = r.variables.session_jwt;
+    var idToken = r.variables.id_token;
     r.variables.request_id    = '-';
-    r.variables.session_jwt   = '-';
+    r.variables.id_token      = '-';
     r.variables.access_token  = '-';
     r.variables.refresh_token = '-';
     if (r.variables.oidc_logout_endpoint) {
@@ -240,7 +240,7 @@ function handleSuccessfulRefreshResponse(r, res) {
         }
 
         // Update opaque ID token and access token to key/value store.
-        r.variables.session_jwt  = tokenset.id_token;
+        r.variables.id_token     = tokenset.id_token;
         r.variables.access_token = tokenset.access_token;
 
         // Update new refresh token to key/value store if we got a new one.
