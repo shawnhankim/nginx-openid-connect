@@ -28,7 +28,8 @@ export default {
     validateIdToken,
     validateAccessToken,
     logout,
-    redirectBase,
+    redirectPostLogin,
+    redirectPostLogout,
     testExtractBearerToken
 };
 
@@ -155,9 +156,14 @@ function logout(r) {
     }
 }
 
-// Redirect base URI after logging in IDP
-function redirectBase(r) {
+// Redirect URI after logging in the IDP.
+function redirectPostLogin(r) {
     r.return(302, r.variables.redirect_base)
+}
+
+// Redirect URI after logged-out from the IDP.
+function redirectPostLogout(r) {
+    r.return(302, r.variables.post_logout_return_uri)
 }
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
