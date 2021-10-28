@@ -30,7 +30,11 @@ export default {
     logout,
     redirectPostLogin,
     redirectPostLogout,
-    testExtractBearerToken
+    passProxyWithToken,
+    passProxyWithIdToken,
+    passProxyWithAccessToken,
+    passProxyWithIdAccessToken,
+    testExtractToken
 };
 
 // Start OIDC with either intializing new session or refershing token:
@@ -79,6 +83,49 @@ function codeExchange(r) {
             handleSuccessfulTokenResponse(r, res)
         }
     );
+}
+
+// Call backend proxy that contains headers (ID token, access token, or both)
+// based on the configuration of return_token_to_backend.
+// The 'return_token_to_backend' can be also configured by APIM.
+//
+function passProxyWithToken(r) {
+    switch(r.variables.return_token_to_backend) {
+        case 'id_token':
+            passProxyWithIdToken(r)
+            break;
+        case 'both':
+            passProxyWithIdAccessToken(r)
+            break;
+        case 'access_token':
+        default: 
+            passProxyWithAccessToken(r)
+    }
+}
+
+// Call backend proxy that contains ID token in header.
+// - Validate ID token
+// - Set ID token to the key of x-id-token in the proxy header.
+// - Pass backend proxy server with the ID token in the header.
+function passProxyWithIdToken(r) {
+    validateTokenPassProxy(r, '/_proxy_with_id_token')
+}
+
+// Call backend proxy that contains access token in header.
+// - Validate access token.
+// - Set Bearer access token in the proxy header.
+// - Pass backend proxy server with the access token in the header.
+function passProxyWithAccessToken(r) {
+    validateTokenPassProxy(r, '/_proxy_with_access_token')
+}
+
+// Call backend proxy that contains ID/access token in header.
+// - Validate access token.
+// - Set Bearer access token in the proxy header.
+// - Set ID token to the key of x-id-token in the proxy header.
+// - Pass backend proxy server with the access token in the header.
+function passProxyWithIdAccessToken(r) {
+    validateTokenPassProxy(r, '/_proxy_with_id_access_token')
 }
 
 // Validate ID token which is received from IdP (fresh or refresh token):
@@ -158,7 +205,7 @@ function logout(r) {
 
 // Redirect URI after logging in the IDP.
 function redirectPostLogin(r) {
-    r.return(302, r.variables.redirect_base)
+    r.return(302, r.variables.redirect_base + getIDTokenArgsAfterLogin(r))
 }
 
 // Redirect URI after logged-out from the IDP.
@@ -418,9 +465,23 @@ function getAuthZArgs(r) {
     return authZArgs;
 }
 
-// Generate and return random string
+// Generate and return random string.
 function randomStr() {
     return String(Math.random())
+}
+
+// Get query parameter of ID token after sucessful login.
+// - For the variable of `returnTokenToClientOnLogin` of the APIM, this config
+//   is only effective for /login endpoint. By default, our implementation MUST
+//   not return any token back to the client app. 
+// - If its configured it can send id_token in the request uri as 
+//   `?id_token=sdfsdfdsfs` after successful login. 
+//
+function getIDTokenArgsAfterLogin(r) {
+    if (r.variables.return_token_to_client_on_login == 'id_token') {
+        return '?id_token=' + r.variables.id_token;
+    }
+    return '';
 }
 
 // Get query parameters for RP-initiated logout:
@@ -580,32 +641,67 @@ function isValidTokenSet(r, tokenset) {
     return !isErr;
 }
 
+// Validate ID/access token and pass backend proxy.
+function validateTokenPassProxy(r, uri) {
+    r.subrequest(uri, function(res) {
+        if (res.status != 200) {
+            r.error('validate token and pass backend proxy: ' + res.status);
+            r.return(res.status)
+            return
+        }
+        r.return(res.status, res.responseBody)
+    });
+}
+
+// Extract ID/access token from the request header.
+function extractToken(r, key, is_bearer, validation_uri, msg) {
+    var token = '';
+    try {
+        var headers = r.headersIn[key].split(' ');
+        if (is_bearer) {
+            if (headers[0] === 'Bearer') {
+                token = headers[1]
+            } else {
+                msg += `, "` + key + `": "N/A"`;
+                return [true, msg]
+            }
+        } else {
+            token = headers[0]
+        }
+        if (!isValidToken(r, validation_uri, token)) {
+            msg += `, "` + key + `": "invalid"}\n`;
+            r.return(401, msg);
+            return [false, msg];
+        } else {
+            msg += `, "` + key + `": "` + token + `"`;
+        }
+    } catch (e) {
+        msg += `, "` + key + ` in header": "N/A"`;
+    }
+    return [true, msg]
+}
+
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  *                                                                             *
  *                      3. Common Functions for Testing                        *
  *                                                                             *
  * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-// Test for extracting bearer token from the header of API request:
-// 
-function testExtractBearerToken (r) {
+// Test for extracting bearer token from the header of API request.
+function testExtractToken (r) {
     var msg = `{"uri":"` + r.variables.request_uri + `"`;
-    try {
-        var authZ = r.headersIn['Authorization'].split(' ');
-        if (authZ[0] === 'Bearer') {
-            if (!isValidToken(r, '/_access_token_validation', authZ[1])) {
-                msg += `, "token": "invalid"}\n`;
-                r.return(401, msg);
-                return
-            } else {
-                msg += `, "token": "` + authZ[1] + `"`;
-            }
-        } else {
-            msg += `, "token": "N/A"`;
-        }
-    } catch (e) {
-        msg += `, "authorization in header": "N/A"`;
+    var res = extractToken(r, 'Authorization', true, '/_access_token_validation', msg)
+    if (!res[0]) {
+        return 
     }
+    msg = res[1]
+
+    var res = extractToken(r, 'x-id-token', false, '/_id_token_validation', msg)
+    if (!res[0]) {
+        return 
+    }
+    msg = res[1]
+
     var body = msg + '}\n';
     r.return(200, body);
 }
