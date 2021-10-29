@@ -195,11 +195,13 @@ function logout(r) {
     r.variables.id_token      = '-';
     r.variables.access_token  = '-';
     r.variables.refresh_token = '-';
-    if (r.variables.oidc_logout_endpoint) {
+    if (r.variables.oidc_rp_initiated_logout == 1) {
         r.return(302, r.variables.oidc_logout_endpoint + 
                       getRPInitiatedLogoutArgs(r, idToken));
     } else {
-        r.return(302, r.variables.oidc_logout_redirect);
+        r.return(302, r.variables.oidc_logout_endpoint + 
+                      r.variables.oidc_logout_query_params
+            );
     }
 }
 
@@ -484,7 +486,7 @@ function getIDTokenArgsAfterLogin(r) {
     return '';
 }
 
-// Get query parameters for RP-initiated logout:
+// Get query params for RP-initiated logout:
 //
 // - https://openid.net/specs/openid-connect-rpinitiated-1_0.html#RPLogout
 // - https://openid.net/specs/openid-connect-rpinitiated-1_0.html#RedirectionAfterLogout
