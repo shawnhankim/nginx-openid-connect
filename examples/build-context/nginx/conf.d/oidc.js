@@ -199,7 +199,7 @@ function logout(r) {
         r.return(302, r.variables.oidc_logout_endpoint + 
                       getRPInitiatedLogoutArgs(r, idToken));
     } else {
-        r.return(302, r.variables.oidc_logout_endpoint + 
+        r.return(302, r.variables.oidc_logout_endpoint + '?' +
                       r.variables.oidc_logout_query_params
             );
     }
