@@ -219,10 +219,17 @@ function logout(r) {
 // Generate custom endpoint using path parameters if the option is enable.
 // Otherwise, return the original endpoint.
 //
+// [Example 1]
 // - Input : "https://{my-app}.okta.com/oauth2/{version}/logout"
 //   + {my-app}  -> 'dev-9590480'
 //   + {version} -> 'v1'
 // - Result: "https://dev-9590480.okta.okta.com/oauth2/v1/logout"
+//
+// [Example 2]
+// - Input : "https://{my-app}.okta.com/oauth2/{version}/authorize"
+//   + {my-app}  -> 'dev-9590480'
+//   + {version} -> 'v1'
+// - Result: "https://dev-9590480.okta.okta.com/oauth2/v1/authorize"
 //
 function generateCustomEndpoint(r, uri, isEnableCustomPath, paths) {
     if (isEnableCustomPath == 0) {
