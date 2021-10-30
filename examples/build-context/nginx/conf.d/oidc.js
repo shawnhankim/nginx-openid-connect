@@ -195,13 +195,18 @@ function logout(r) {
     r.variables.id_token      = '-';
     r.variables.access_token  = '-';
     r.variables.refresh_token = '-';
-    if (r.variables.oidc_rp_initiated_logout == 1) {
+
+    // OIDC RP-initiated logout.
+    if (r.variables.oidc_custom_logout_query_params_enable == 0) {
         r.return(302, r.variables.oidc_logout_endpoint + 
                       getRPInitiatedLogoutArgs(r, idToken));
+    
+    // Call the IDP logout endpoint with custom query parameters
+    // if the IDP doesn't support RP-initiated logout.
     } else {
-        r.return(302, r.variables.oidc_logout_endpoint + '?' +
-                      r.variables.oidc_logout_query_params
-            );
+        r.return(302, r.variables.oidc_logout_endpoint + //'?' +
+            generateQueryParams(r.variables.oidc_custom_logout_query_params)
+        );
     }
 }
 
