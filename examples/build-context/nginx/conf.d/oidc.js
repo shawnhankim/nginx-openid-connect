@@ -418,8 +418,8 @@ function setTokenParams(r) {
     );
 }
 
-// Clear token query parameters from the temporary stroage of NGINX if OIDC's
-// token endpoint returns error.
+// Clear query parameters of the temporary stroage for the NGINX if OIDC's token
+// endpoint returns error.
 function clearTokenParams(r) {
     r.variables.token_query_params = '';
 }
