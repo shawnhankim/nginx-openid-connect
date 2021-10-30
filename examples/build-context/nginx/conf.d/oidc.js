@@ -204,7 +204,7 @@ function logout(r) {
     // Call the IDP logout endpoint with custom query parameters
     // if the IDP doesn't support RP-initiated logout.
     } else {
-        r.return(302, r.variables.oidc_logout_endpoint + //'?' +
+        r.return(302, r.variables.oidc_logout_endpoint + 
             generateQueryParams(r.variables.oidc_custom_logout_query_params)
         );
     }
