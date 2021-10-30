@@ -179,7 +179,7 @@ function validateAccessToken(r) {
         return false;
     }
     r.return(204);
-    return true
+    return true;
 }
 
 // RP-Initiated or Custom Logout w/ IDP
@@ -197,29 +197,70 @@ function logout(r) {
     r.variables.id_token      = '-';
     r.variables.access_token  = '-';
     r.variables.refresh_token = '-';
+    var logout_endpoint = generateCustomEndpoint(r,
+        r.variables.oidc_logout_endpoint,
+        r.variables.oidc_custom_logout_path_params_enable,
+        r.variables.oidc_custom_logout_path_params
+    );
+    var queryParams = '';
 
     // OIDC RP-initiated logout.
     if (r.variables.oidc_custom_logout_query_params_enable == 0) {
-        r.return(302, r.variables.oidc_logout_endpoint + 
-                      getRPInitiatedLogoutArgs(r, idToken));
-    
+        queryParams = getRPInitiatedLogoutArgs(r, idToken);
+
     // Call the IDP logout endpoint with custom query parameters
     // if the IDP doesn't support RP-initiated logout.
     } else {
-        r.return(302, r.variables.oidc_logout_endpoint + 
-            generateQueryParams(r.variables.oidc_custom_logout_query_params)
-        );
+        queryParams = generateQueryParams(r.variables.oidc_custom_logout_query_params);
     }
+    r.return(302, logout_endpoint + queryParams);
+}
+
+// Generate custom endpoint using path parameters if the option is enable.
+// Otherwise, return the original endpoint.
+//
+// - Input : "https://{my-app}.okta.com/oauth2/{version}/logout"
+//   + {my-app}  -> 'dev-9590480'
+//   + {version} -> 'v1'
+// - Result: "https://dev-9590480.okta.okta.com/oauth2/v1/logout"
+//
+function generateCustomEndpoint(r, uri, isEnableCustomPath, paths) {
+    if (isEnableCustomPath == 0) {
+        return uri;
+    }
+    var res   = '';
+    var key   = '';
+    var isKey = false;
+    var items = JSON.parse(paths);
+    for (var i = 0; i < uri.length; i++) {
+        switch (uri[i]) {
+            case '{': 
+                isKey = true; 
+                break;
+            case '}': 
+                res  += items[key]
+                key   = '';
+                isKey = false; 
+                break;
+            default : 
+                if (!isKey) {
+                    res += uri[i];
+                } else {
+                    key += uri[i];
+                }
+        }
+    }
+    return res;
 }
 
 // Redirect URI after logging in the IDP.
 function redirectPostLogin(r) {
-    r.return(302, r.variables.redirect_base + getIDTokenArgsAfterLogin(r))
+    r.return(302, r.variables.redirect_base + getIDTokenArgsAfterLogin(r));
 }
 
 // Redirect URI after logged-out from the IDP.
 function redirectPostLogout(r) {
-    r.return(302, r.variables.post_logout_return_uri)
+    r.return(302, r.variables.post_logout_return_uri);
 }
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -498,8 +539,8 @@ function getAuthZArgs(r) {
 }
 
 // Generate custom query parameters from JSON object
-function generateQueryParams(items) {
-    var items = JSON.parse(items);
+function generateQueryParams(obj) {
+    var items = JSON.parse(obj);
     var args = '?'
     for (var key in items) {
         args += key + '=' + items[key] + '&'
