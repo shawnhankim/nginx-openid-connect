@@ -449,6 +449,7 @@ function getAuthZArgs(r) {
         'auth_redir=' + r.variables.request_uri + '; ' + cookieFlags,
         'auth_nonce=' + noncePlain + '; ' + cookieFlags
     ];
+    r.variables.nonce_hash = nonceHash;
 
     if (r.variables.oidc_pkce_enable == 1) {
         var pkce_code_verifier  = c.createHmac('sha256', r.variables.oidc_hmac_key).
@@ -464,7 +465,21 @@ function getAuthZArgs(r) {
     } else {
         authZArgs += '&state=0';
     }
+
+    if (r.variables.oidc_custom_authz_enable == 1) {
+        return generateQueryParams(r.variables.oidc_custom_authz_query_params);
+    }
     return authZArgs;
+}
+
+// Generate custom query parameters from JSON object
+function generateQueryParams(items) {
+    var items = JSON.parse(items);
+    var args = '?'
+    for (var key in items) {
+        args += key + '=' + items[key] + '&'
+    }
+    return args.slice(0, -1)
 }
 
 // Generate and return random string.
