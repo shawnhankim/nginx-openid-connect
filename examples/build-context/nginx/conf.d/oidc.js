@@ -257,6 +257,7 @@ function generateCustomEndpoint(r, uri, isEnableCustomPath, paths) {
                 }
         }
     }
+    r.log('generated an endpoint using path params: ' + res)
     return res;
 }
 
