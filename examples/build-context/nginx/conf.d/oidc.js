@@ -279,6 +279,12 @@ function startIdPAuthZ(r) {
 
     var configs = ['authz_endpoint', 'scopes', 'hmac_key', 'cookie_flags'];
     var missingConfig = [];
+    var authz_endpoint = generateCustomEndpoint(r,
+        r.variables.oidc_authz_endpoint,
+        r.variables.oidc_custom_authz_path_params_enable,
+        r.variables.oidc_custom_authz_path_params
+    );
+
     for (var i in configs) {
         var oidcCfg = r.variables['oidc_' + configs[i]]
         if (!oidcCfg || oidcCfg == '') {
@@ -290,7 +296,7 @@ function startIdPAuthZ(r) {
         r.return(500, r.variables.internal_error_message);
         return;
     }
-    r.return(302, r.variables.oidc_authz_endpoint + getAuthZArgs(r));
+    r.return(302, authz_endpoint + getAuthZArgs(r));
 }
 
 // Handle error response regarding the referesh token received from IDP:
