@@ -74,12 +74,12 @@ function codeExchange(r) {
     if (!isValidAuthZCode(r)) {
         return
     }
-    setTokenQueryParams(r)
+    setTokenParams(r)
     r.subrequest('/_token', getTokenArgs(r),
         function(res) {
             var isErr = handleTokenErrorResponse(r, res)
             if (isErr) {
-                clearTokenQueryParams(r)
+                clearTokenParams(r)
                 return
             }
             handleSuccessfulTokenResponse(r, res)
@@ -257,6 +257,7 @@ function generateCustomEndpoint(r, uri, isEnableCustomPath, paths) {
                 }
         }
     }
+    r.log('generated an endpoint using path params: ' + res)
     return res;
 }
 
@@ -389,31 +390,37 @@ function handleSuccessfulRefreshResponse(r, res) {
 //  - https://openid.net/specs/openid-connect-core-1_0.html#RefreshTokenResponse
 //
 function refershToken(r) {
-    setTokenQueryParams(r)
+    setTokenParams(r)
     r.subrequest('/_refresh', 'token=' + r.variables.refresh_token, respHandler);
     function respHandler(res) {
         if (res.status != 200) {
             handleRefershErrorResponse(r, res);
-            clearTokenQueryParams(r)
+            clearTokenParams(r)
             return;
         }
         handleSuccessfulRefreshResponse(r, res);
     }
 }
 
-// Set token query parameters if customization option of query params is enable.
-function setTokenQueryParams(r) {
-    clearTokenQueryParams(r)
+// Set query/path parameters to the IDP token endpoint if customization option 
+// for query or path param is enable.
+function setTokenParams(r) {
+    clearTokenParams(r)
     if (r.variables.oidc_custom_token_query_params_enable == 1) {
         r.variables.token_query_params = generateQueryParams(
             r.variables.oidc_custom_token_query_params
         );
     }
+    r.variables.oidc_custom_token_endpoint = generateCustomEndpoint(r,
+        r.variables.oidc_token_endpoint,
+        r.variables.oidc_custom_token_path_params_enable,
+        r.variables.oidc_custom_token_path_params
+    );
 }
 
-// Clear token query parameters from the temporary stroage of NGINX if OIDC's
-// token endpoint returns error.
-function clearTokenQueryParams(r) {
+// Clear query parameters of the temporary stroage for the NGINX if OIDC's token
+// endpoint returns error.
+function clearTokenParams(r) {
     r.variables.token_query_params = '';
 }
 
