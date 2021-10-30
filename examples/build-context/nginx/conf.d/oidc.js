@@ -402,7 +402,8 @@ function refershToken(r) {
     }
 }
 
-// Set token query parameters if customization option of query params is enable.
+// Set query/path parameters to the IDP token endpoint if customization option 
+// for query or path param is enable.
 function setTokenParams(r) {
     clearTokenParams(r)
     if (r.variables.oidc_custom_token_query_params_enable == 1) {
