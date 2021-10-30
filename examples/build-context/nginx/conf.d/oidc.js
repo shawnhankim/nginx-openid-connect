@@ -74,10 +74,12 @@ function codeExchange(r) {
     if (!isValidAuthZCode(r)) {
         return
     }
+    setTokenQueryParams(r)
     r.subrequest('/_token', getTokenArgs(r),
         function(res) {
             var isErr = handleTokenErrorResponse(r, res)
             if (isErr) {
+                clearTokenQueryParams(r)
                 return
             }
             handleSuccessfulTokenResponse(r, res)
@@ -333,14 +335,32 @@ function handleSuccessfulRefreshResponse(r, res) {
 //  - https://openid.net/specs/openid-connect-core-1_0.html#RefreshTokenResponse
 //
 function refershToken(r) {
+    setTokenQueryParams(r)
     r.subrequest('/_refresh', 'token=' + r.variables.refresh_token, respHandler);
     function respHandler(res) {
         if (res.status != 200) {
             handleRefershErrorResponse(r, res);
+            clearTokenQueryParams(r)
             return;
         }
         handleSuccessfulRefreshResponse(r, res);
     }
+}
+
+// Set token query parameters if customization option of query params is enable.
+function setTokenQueryParams(r) {
+    clearTokenQueryParams(r)
+    if (r.variables.oidc_custom_token_query_params_enable == 1) {
+        r.variables.token_query_params = generateQueryParams(
+            r.variables.oidc_custom_token_query_params
+        );
+    }
+}
+
+// Clear token query parameters from the temporary stroage of NGINX if OIDC's
+// token endpoint returns error.
+function clearTokenQueryParams(r) {
+    r.variables.token_query_params = '';
 }
 
 // Handle error response regarding the token received from IDP token endpoint:
@@ -471,7 +491,7 @@ function getAuthZArgs(r) {
         authZArgs += '&state=0';
     }
 
-    if (r.variables.oidc_custom_authz_enable == 1) {
+    if (r.variables.oidc_custom_authz_query_params_enable == 1) {
         return generateQueryParams(r.variables.oidc_custom_authz_query_params);
     }
     return authZArgs;
