@@ -219,10 +219,17 @@ function logout(r) {
 // Generate custom endpoint using path parameters if the option is enable.
 // Otherwise, return the original endpoint.
 //
+// [Example 1]
 // - Input : "https://{my-app}.okta.com/oauth2/{version}/logout"
 //   + {my-app}  -> 'dev-9590480'
 //   + {version} -> 'v1'
 // - Result: "https://dev-9590480.okta.okta.com/oauth2/v1/logout"
+//
+// [Example 2]
+// - Input : "https://{my-app}.okta.com/oauth2/{version}/authorize"
+//   + {my-app}  -> 'dev-9590480'
+//   + {version} -> 'v1'
+// - Result: "https://dev-9590480.okta.okta.com/oauth2/v1/authorize"
 //
 function generateCustomEndpoint(r, uri, isEnableCustomPath, paths) {
     if (isEnableCustomPath == 0) {
@@ -279,6 +286,12 @@ function startIdPAuthZ(r) {
 
     var configs = ['authz_endpoint', 'scopes', 'hmac_key', 'cookie_flags'];
     var missingConfig = [];
+    var authz_endpoint = generateCustomEndpoint(r,
+        r.variables.oidc_authz_endpoint,
+        r.variables.oidc_custom_authz_path_params_enable,
+        r.variables.oidc_custom_authz_path_params
+    );
+
     for (var i in configs) {
         var oidcCfg = r.variables['oidc_' + configs[i]]
         if (!oidcCfg || oidcCfg == '') {
@@ -290,7 +303,7 @@ function startIdPAuthZ(r) {
         r.return(500, r.variables.internal_error_message);
         return;
     }
-    r.return(302, r.variables.oidc_authz_endpoint + getAuthZArgs(r));
+    r.return(302, authz_endpoint + getAuthZArgs(r));
 }
 
 // Handle error response regarding the referesh token received from IDP:
