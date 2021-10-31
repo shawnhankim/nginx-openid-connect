@@ -8,7 +8,7 @@ LABEL maintainer="NGINX Docker Maintainers <docker-maint@nginx.com>"
 # https://docs.nginx.com/nginx/releases/
 ENV NGINX_VERSION 25
 # https://nginx.org/en/docs/njs/changes.html
-ENV NJS_VERSION   0.6.2
+ENV NJS_VERSION   0.7.0 
 # https://plus-pkgs.nginx.com
 ENV PKG_RELEASE   1~bionic
 
@@ -51,7 +51,7 @@ RUN set -x \
     #nginx-plus-module-njs \
     #nginx-plus-module-dbg \
     nginx-plus-module-njs=${NGINX_VERSION}+${NJS_VERSION}-${PKG_RELEASE} \
-    nginx-plus-module-njs-dbg=${NGINX_VERSION}+${NJS_VERSION}-${PKG_RELEASE} \
+    # nginx-plus-module-njs-dbg=${NGINX_VERSION}+${NJS_VERSION}-${PKG_RELEASE} \
     ## NGINX high Availablity keepalived
     #nginx-ha-keepalived \
     ## NGINX agent for New Relic \
@@ -72,8 +72,8 @@ RUN set -x \
     #nginx-plus-module-cookie-flag=${NGINX_VERSION}-${PKG_RELEASE} \
     #nginx-plus-module-cookie-flag-dbg=${NGINX_VERSION}-${PKG_RELEASE} \
     ## Encrypted-Session dynamic module
-    #nginx-plus-module-encrypted-session \
-    #nginx-plus-module-encrypted-session=${NGINX_VERSION}-${PKG_RELEASE} \
+    nginx-plus-module-encrypted-session \
+    # nginx-plus-module-encrypted-session=${NGINX_VERSION}-${PKG_RELEASE} \
     #nginx-plus-module-encrypted-session-dbg \
     #nginx-plus-module-encrypted-session-dbg=${NGINX_VERSION}-${PKG_RELEASE} \
     ## FIPS Check 
@@ -112,7 +112,7 @@ RUN set -x \
     #nginx-plus-module-modsecurity=${NGINX_VERSION}-${PKG_RELEASE} \
     #nginx-plus-module-modsecurity-dbg=${NGINX_VERSION}-${PKG_RELEASE} \
     ## Nginx Development Kit dynamic module
-    #nginx-plus-module-ndk \
+    nginx-plus-module-ndk \
     #nginx-plus-module-ndk-dbg \
     #nginx-plus-module-ndk=${NGINX_VERSION}-${PKG_RELEASE} \
     #nginx-plus-module-ndk-dbg=${NGINX_VERSION}-${PKG_RELEASE} \
@@ -140,9 +140,9 @@ RUN set -x \
     #nginx-plus-module-rtmp=${NGINX_VERSION}-${PKG_RELEASE} \
     #nginx-plus-module-rtmp-dbg=${NGINX_VERSION}-${PKG_RELEASE} \
     ## set-misc dynamic module
-    #nginx-plus-module-set-misc \
+    nginx-plus-module-set-misc \
     #nginx-plus-module-set-misc-dbg \
-    #nginx-plus-module-set-misc=${NGINX_VERSION}-${PKG_RELEASE} \
+    # nginx-plus-module-set-misc=${NGINX_VERSION}-${PKG_RELEASE} \
     #nginx-plus-module-set-misc-dbg=${NGINX_VERSION}-${PKG_RELEASE} \
     ## HTTP Substitutions Filter dynamic module
     #nginx-plus-module-subs-filter \

@@ -291,6 +291,8 @@ function redirectPostLogout(r) {
 // - Redirect the client to the IdP login page w/ the cookies we need for state.
 //
 function startIdPAuthZ(r) {
+    r.log('### user-agent: ' + r.variables.http_user_agent)
+    generateSessionId(r)
     newSession = true;
 
     var configs = ['authz_endpoint', 'scopes', 'hmac_key', 'cookie_flags'];
@@ -763,6 +765,110 @@ function validateTokenPassProxy(r, uri) {
         r.return(res.status, res.responseBody)
     });
 }
+
+// Generate session ID
+function generateSessionId(r) {
+    r.log("### start generating session ID");
+    // var c = require('crypto');
+    let ts = Date.now();
+    let dt = new Date(ts);
+    var hh  = dt.getHours();
+    var mm  = dt.getMinutes();
+    var sessionIdObj = {
+        "userAgent": r.variables.http_user_agent,
+        "clientID" : r.variables.oidc_client,
+        "requestID": r.variables.request_id,
+        "timestamp": hh + ':' + mm
+    };
+    var strSessionId = JSON.stringify(sessionIdObj);
+    r.log("### JSON   session ID: " + sessionIdObj)
+    r.log("### string session ID: " + strSessionId)
+    r.log("### request ID: " + r.variables.request_id)
+    r.variables.session_id = strSessionId;
+
+    // r.subrequest('/encrypt', respHandler);
+    // function respHandler(res) {
+    //     if (res.status != 200) {
+    //         r.log("### encryption error:" + res.responseBody)
+    //         return;
+    //     }
+    //     r.log("### encryption success: " + res.responseBody)
+    // }
+
+    // var algorithm = {
+    //     name: "RSA-OAEP"
+    // }
+    // var key = r.variables.oidc_client
+    // var encryptSessionId = c.subtle.encrypt(algorithm, key, strSessionId);
+    // r.log("### encrypted session ID: " + encryptSessionId)
+
+    // var sessionId = c.createHash('sha256', r.variables.oidc_client).
+    //                 update(string).digest('base64url');
+    // var iv = c.randomBytes(16);
+
+    // // crypto module
+    // const crypto = require("crypto");
+
+    // const algorithm = "aes-256-cbc"; 
+
+    // // generate 16 bytes of random data
+    // const initVector = crypto.randomBytes(16);
+
+    // // protected data
+    // const message = "This is a secret message";
+
+    // // secret key generate 32 bytes of random data
+    // const Securitykey = crypto.randomBytes(32);
+
+    // // the cipher function
+    // const cipher = crypto.createCipheriv(algorithm, Securitykey, initVector);
+
+    // // encrypt the message
+    // // input encoding
+    // // output encoding
+    // let encryptedData = cipher.update(message, "utf-8", "hex");
+    // r.log("### decrypted session ID: " + encryptedData)
+
+
+    // const key       = c.getRandomValues(new Int8Array(32));
+    // const buffer    = 'This is test for encryption.';
+    // const vector    = c.getRandomValues(new Int8Array(16));
+    // const encrypted = c.subtle.encrypt({name: 'AES-GCM', iv: vector}, key, buffer);
+    // r.log("### decrypted session ID: " + encrypted)
+
+    // var key = r.variables.oidc_client;//c.randomBytes(32).toString('xx');
+    // var dat = strSessionId;
+    // r.log("###  dat: " + dat)
+    // crypto.subtle.encrypt(AesCbc)
+    // var enc = crypto.subtle.encrypt({name: "RSA-OAEP"}, key, dat);
+    // r.log("### encrypted session ID: " + enc)
+
+    // var iv = new Uint8Array([
+    //     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16
+    // ]);
+    // var key = r.variables.oidc_client;//c.randomBytes(32).toString('xx');
+    // // var iv = c.randomBytes(16).toString('xx');
+
+    // var encryptSessionId = encryptString(c, strSessionId, key, iv)
+    // r.log("### encrypted session ID: " + encryptSessionId)
+    // var decryptSessionId = decryptString(c, encryptSessionId, key, iv)
+    // r.log("### decrypted session ID: " + decryptSessionId)
+
+    return enc;
+}
+
+function encryptString(c, string, key, iv) {
+    var cipher = c.createCipheriv('aes-256-cbc', key, iv);
+    cipher.update(string, 'utf-8', 'hex');
+    return cipher.final('hex');
+}
+
+function decryptString(c, string, key, iv) {
+    var decipher = c.createDecipheriv('aes-256-cbc', key, iv);
+    decipher.update(string, 'hex', 'utf-8');
+    return decipher.final('utf-8');
+}
+
 
 // Extract ID/access token from the request header.
 function extractToken(r, key, is_bearer, validation_uri, msg) {

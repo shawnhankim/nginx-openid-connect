@@ -7,7 +7,7 @@ LABEL maintainer="NGINX Docker Maintainers <docker-maint@nginx.com>"
 # https://docs.nginx.com/nginx/releases/  
 ENV NGINX_VERSION   24
 # https://nginx.org/en/docs/njs/changes.html  
-ENV NJS_VERSION     0.6.1
+ENV NJS_VERSION     0.7.0
 # https://plus-pkgs.nginx.com
 ENV PKG_RELEASE     1~buster
 
