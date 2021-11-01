@@ -292,7 +292,7 @@ function redirectPostLogout(r) {
 //
 function startIdPAuthZ(r) {
     r.log('### user-agent: ' + r.variables.http_user_agent)
-    generateSessionId(r)
+    generateSession(r)
     newSession = true;
 
     var configs = ['authz_endpoint', 'scopes', 'hmac_key', 'cookie_flags'];
@@ -765,109 +765,191 @@ function validateTokenPassProxy(r, uri) {
         r.return(res.status, res.responseBody)
     });
 }
+function fromBase64String(str) {
+    var alpha = 
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    var value = [];
+    var index = 0;
+    var destIndex  = 0;
+    var padding = false;
+    while (true) {
+
+        var first  = getNextChr(str, index, padding, alpha);
+        var second = getNextChr(str, first .nextIndex, first .padding, alpha);
+        var third  = getNextChr(str, second.nextIndex, second.padding, alpha);
+        var fourth = getNextChr(str, third .nextIndex, third .padding, alpha);
+
+        index = fourth.nextIndex;
+        padding = fourth.padding;
+
+        // ffffffss sssstttt ttffffff
+        var base64_first  = first.code  == null ? 0 : first.code;
+        var base64_second = second.code == null ? 0 : second.code;
+        var base64_third  = third.code  == null ? 0 : third.code;
+        var base64_fourth = fourth.code == null ? 0 : fourth.code;
+
+        var a = (( base64_first << 2) & 0xFC ) | ((base64_second>>4) & 0x03);
+        var b = (( base64_second<< 4) & 0xF0 ) | ((base64_third >>2) & 0x0F);
+        var c = (( base64_third << 6) & 0xC0 ) | ((base64_fourth>>0) & 0x3F);
+
+        value [destIndex++] = a;
+        if (!third.padding) {
+            value [destIndex++] = b;
+        } else {
+            break;
+        }
+        if (!fourth.padding) {
+            value [destIndex++] = c;
+        } else {
+            break;
+        }
+        if (index >= str.length) {
+            break;
+        }
+    }
+    return value;
+}
+
+function getNextChr(str, index, equalSignReceived, alpha) {
+    var chr = null;
+    var code = 0;
+    var padding = equalSignReceived;
+    while (index < str.length) {
+        chr = str.charAt(index);
+        if (chr == " " || chr == "\r" || chr == "\n" || chr == "\t") {
+            index++;
+            continue;
+        }
+        if (chr == "=") {
+            padding = true;
+        } else {
+            if (equalSignReceived) {
+                throw new Error("Invalid Base64 Endcoding character \"" 
+                    + chr + "\" with code " + str.charCodeAt(index) 
+                    + " on position " + index 
+                    + " received afer an equal sign (=) padding "
+                    + "character has already been received. "
+                    + "The equal sign padding character is the only "
+                    + "possible padding character at the end.");
+            }
+            code = alpha.indexOf(chr);
+            if (code == -1) {
+                throw new Error("Invalid Base64 Encoding character \"" 
+                    + chr + "\" with code " + str.charCodeAt(index) 
+                    + " on position " + index + ".");
+            }
+        }
+        break;
+    }
+    return { character: chr, code: code, padding: padding, nextIndex: ++index};
+}
+
+function strToArrayBuffer(str) {
+    var buf = new ArrayBuffer(str.length * 2);
+    var bufView = new Uint16Array(buf);
+    for (var i = 0, strLen = str.length; i < strLen; i++) {
+      bufView[i] = str.charCodeAt(i);
+    }
+    return buf;
+}
+  
+function arrayBufferToString(buffer) {
+    return String.fromCharCode.apply(null, new Uint16Array(buffer));
+}
+
+function decryptSession(r, cipherText, vector, key1) {
+    var keyData = Buffer.from(r.variables.session_key, 'base64');
+    // var vector    = crypto.getRandomValues(new Uint32Array(16));
+    r.log('### vector: ' + vector)
+    var resKey = crypto.subtle.importKey('raw', keyData, 'AES-GCM', false,
+                                            ['encrypt', 'decrypt']);
+    resKey.then(function(key){ // CryptoKey object
+        var res = crypto.subtle.decrypt(
+            {name: 'AES-GCM', iv: vector}, key, cipherText
+        );
+        res.then(function(buf){ 
+            r.log('### decrypted session: ' + buf);
+            r.log("### decrypted session str 1: " + arrayBufferToString(buf));
+            r.log("### decrypted session str 2: " + arrayBufferToString(buf).toString());
+            r.log("### decrypted session str 3: " + arrayBufferToString(buf).toString('hex'));
+        }).catch (function (err) {
+            r.log('### Error: ' + err.message);
+        });
+    });
+}
 
 // Generate session ID
-function generateSessionId(r) {
+function generateSession(r) {
     r.log("### start generating session ID");
-    // var c = require('crypto');
-    let ts = Date.now();
-    let dt = new Date(ts);
-    var hh  = dt.getHours();
-    var mm  = dt.getMinutes();
-    var sessionIdObj = {
-        "userAgent": r.variables.http_user_agent,
-        "clientID" : r.variables.oidc_client,
-        "requestID": r.variables.request_id,
-        "timestamp": hh + ':' + mm
+
+    var dt = new Date(Date.now());
+    var sessionObj = {
+        "userAgent" : r.variables.http_user_agent,
+        "clientID"  : r.variables.oidc_client,
+        "requestID" : r.variables.request_id,
+        "timestamp" : dt.getHours() + ":" + dt.getMinutes()
     };
-    var strSessionId = JSON.stringify(sessionIdObj);
-    r.log("### JSON   session ID: " + sessionIdObj)
-    r.log("### string session ID: " + strSessionId)
+    var strSession = JSON.stringify(sessionObj);
+    if (strSession.length % 2 == 1) {
+        strSession += ' ';
+    }
+    r.log("### JSON   session: " + sessionObj)
+    r.log("### string session: " + strSession)
     r.log("### request ID: " + r.variables.request_id)
-    r.variables.session_id = strSessionId;
 
-    // r.subrequest('/encrypt', respHandler);
-    // function respHandler(res) {
-    //     if (res.status != 200) {
-    //         r.log("### encryption error:" + res.responseBody)
-    //         return;
-    //     }
-    //     r.log("### encryption success: " + res.responseBody)
-    // }
+    var keyData = Buffer.from(r.variables.session_key, 'base64');
+    var buffer  = strToArrayBuffer(strSession);
+    var vector  = crypto.getRandomValues(new Uint32Array(16));
+    var resKey  = crypto.subtle.importKey('raw', keyData, 'AES-GCM', false,
+                                            ['encrypt', 'decrypt']);
+    resKey.then(function(key){ // CryptoKey object
+        var encrypted = crypto.subtle.encrypt(
+            {name: 'AES-GCM', iv: vector, length: 256}, key, buffer
+        )
+        encrypted.then(function (cipherText) {
+            r.log('### Cipher Text 1: ' + arrayBufferToString(cipherText).toString('hex'));
+            decryptSession(r, cipherText, vector, key)
+        }).then(function (plainText) {
+            r.log('### Plain Text: ' + arrayBufferToString(plainText).toString());
+        }).catch (function (err) {
+            r.log('### Error: ' + err.message);
+        });
+    });
+    //     var encrypted = crypto.subtle.encrypt(
+    //         {name: 'AES-GCM', iv: vector}, key, buffer
+    //     )
+    //     encrypted.then(function(res){ // ArrayBuffer object
+    //         var encryptSession = arrayBufferToString(res).toString('hex');
+    //         r.log("### encrypted session ID str (hex): " + encryptSession)
+    //         decryptSession(r, encryptSession, vector)
+    //     })
+    //     .catch(function(error) {
+    //         r.log("### encrypted session exception: " + error)
+    //     });
+    // })
+    // .catch(function(error) {
+    //     r.log("### import key exception: " + error)
+    // });
 
-    // var algorithm = {
-    //     name: "RSA-OAEP"
-    // }
-    // var key = r.variables.oidc_client
-    // var encryptSessionId = c.subtle.encrypt(algorithm, key, strSessionId);
+    // var encryptSessionId = encryptString(strSession, key, iv)
     // r.log("### encrypted session ID: " + encryptSessionId)
-
-    // var sessionId = c.createHash('sha256', r.variables.oidc_client).
-    //                 update(string).digest('base64url');
-    // var iv = c.randomBytes(16);
-
-    // // crypto module
-    // const crypto = require("crypto");
-
-    // const algorithm = "aes-256-cbc"; 
-
-    // // generate 16 bytes of random data
-    // const initVector = crypto.randomBytes(16);
-
-    // // protected data
-    // const message = "This is a secret message";
-
-    // // secret key generate 32 bytes of random data
-    // const Securitykey = crypto.randomBytes(32);
-
-    // // the cipher function
-    // const cipher = crypto.createCipheriv(algorithm, Securitykey, initVector);
-
-    // // encrypt the message
-    // // input encoding
-    // // output encoding
-    // let encryptedData = cipher.update(message, "utf-8", "hex");
-    // r.log("### decrypted session ID: " + encryptedData)
-
-
-    // const key       = c.getRandomValues(new Int8Array(32));
-    // const buffer    = 'This is test for encryption.';
-    // const vector    = c.getRandomValues(new Int8Array(16));
-    // const encrypted = c.subtle.encrypt({name: 'AES-GCM', iv: vector}, key, buffer);
-    // r.log("### decrypted session ID: " + encrypted)
-
-    // var key = r.variables.oidc_client;//c.randomBytes(32).toString('xx');
-    // var dat = strSessionId;
-    // r.log("###  dat: " + dat)
-    // crypto.subtle.encrypt(AesCbc)
-    // var enc = crypto.subtle.encrypt({name: "RSA-OAEP"}, key, dat);
-    // r.log("### encrypted session ID: " + enc)
-
-    // var iv = new Uint8Array([
-    //     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16
-    // ]);
-    // var key = r.variables.oidc_client;//c.randomBytes(32).toString('xx');
-    // // var iv = c.randomBytes(16).toString('xx');
-
-    // var encryptSessionId = encryptString(c, strSessionId, key, iv)
-    // r.log("### encrypted session ID: " + encryptSessionId)
-    // var decryptSessionId = decryptString(c, encryptSessionId, key, iv)
+    // var decryptSessionId = decryptString(encryptSessionId, key, iv)
     // r.log("### decrypted session ID: " + decryptSessionId)
 
-    return enc;
+    return strSession;
 }
 
-function encryptString(c, string, key, iv) {
-    var cipher = c.createCipheriv('aes-256-cbc', key, iv);
-    cipher.update(string, 'utf-8', 'hex');
-    return cipher.final('hex');
-}
+// function encryptString(string, key, iv) {
+//     var cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
+//     cipher.update(string, 'utf-8', 'hex');
+//     return cipher.final('hex');
+// }
 
-function decryptString(c, string, key, iv) {
-    var decipher = c.createDecipheriv('aes-256-cbc', key, iv);
-    decipher.update(string, 'hex', 'utf-8');
-    return decipher.final('utf-8');
-}
+// function decryptString(c, string, key, iv) {
+//     var decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
+//     decipher.update(string, 'hex', 'utf-8');
+//     return decipher.final('utf-8');
+// }
 
 
 // Extract ID/access token from the request header.
@@ -924,3 +1006,248 @@ function testExtractToken (r) {
     var body = msg + '}\n';
     r.return(200, body);
 }
+
+
+var browser_slash_v123_names = [
+    'ANTGalio',
+    'Camino',
+    'Chrome',
+    'Demeter',
+    'Dillo',
+    'Epiphany',
+    'Fennec',
+    'Flock',
+    'Fluid',
+    'Fresco',
+    'Galeon',
+    'GranParadiso',
+    'IceWeasel',
+    'Iceape',
+    'Iceweasel',
+    'Iris',
+    'Iron',
+    'Jasmine',
+    'K-Meleon',
+    'Kazehakase',
+    'Konqueror',
+    'Lobo',
+    'Lunascape',
+    'Lynx',
+    'Maxthon',
+    'Midori',
+    'NetFront',
+    'NetNewsWire',
+    'Netscape',
+    'OmniWeb',
+    'Opera Mini',
+    'SeaMonkey',
+    'Shiira',
+    'Sleipnir',
+    'Sunrise',
+    'Vienna',
+    'Vodafone',
+    'WebPilot',
+    'iCab'
+  ],
+  browser_slash_v123_names_pattern = '(' + browser_slash_v123_names.join('|') + ')'
+  
+  var browser_slash_v12_names = [
+    'Arora',
+    'BOLT',
+    'Bolt',
+    'Camino',
+    'Chrome',
+    'Dillo',
+    'Dolfin',
+    'Epiphany',
+    'Fennec',
+    'Flock',
+    'Galeon',
+    'GranParadiso',
+    'IBrowse',
+    'IceWeasel',
+    'Iceape',
+    'Iceweasel',
+    'Iron',
+    'Jasmine',
+    'K-Meleon',
+    'Kazehakase',
+    'Konqueror',
+    'Lunascape',
+    'Lynx',
+    'Maxthon',
+    'Midori',
+    'NetFront',
+    'NetNewsWire',
+    'Netscape',
+    'Opera Mini',
+    'Opera',
+    'Orca',
+    'Phoenix',
+    'SeaMonkey',
+    'Shiira',
+    'Sleipnir',
+    'Space Bison',
+    'Stainless',
+    'Vienna',
+    'Vodafone',
+    'WebPilot',
+    'iCab',
+  ],
+  browser_slash_v12_names_pattern = '(' + browser_slash_v12_names.join('|') + ')'
+  
+  var replace = function(type, replacement) {
+    return function(components) {
+      component_matches = replacement.match(/\$([a-z]+)/g)
+      if (component_matches)
+        component_matches.forEach(function(match) {
+          var component = match.substring(1)
+          components[type] = replacement.replace(match, components[component])
+        })
+      else
+        components[type] = replacement
+    }
+  }
+  
+  //
+  // Given a User-Agent HTTP header string, parse it to extract the browser "family", 
+  // (eg, "Safari", "Firefox", "IE"), and the major, minor, and tertiary version numbers.
+  //
+  // Note: Some browsers have a quaternary number, but this code stops at tertiary version numbers.
+  //
+  function parse(useragent) {
+  
+    var p = function() {
+      var args = Array.prototype.slice.call(arguments, 0),
+          regexp = args.shift()
+          callbacks = args,
+          match = useragent.match(regexp)
+  
+      if (match) {
+        var components = {
+          family: match[1],
+          v1: match[2],
+          v2: match[3],
+          v3: match[4]
+        }
+        callbacks.forEach(function(cb) {
+          cb(components)
+        })
+  
+        return components
+      }
+      else
+        return false
+    }
+  
+  
+    return (
+      // Special Cases ---------------------------------------------------------------------
+  
+      // must go before Opera
+      p(/^(Opera)\/(\d+)\.(\d+) \(Nintendo Wii/, replace('family', 'Wii')) ||
+      //  // must go before Browser/v1.v2 - eg: Minefield/3.1a1pre
+      p(/(Namoroka|Shiretoko|Minefield)\/(\d+)\.(\d+)\.(\d+(?:pre)?)/, replace('family', 'Firefox ($family)')) ||
+      p(/(Namoroka|Shiretoko|Minefield)\/(\d+)\.(\d+)([ab]\d+[a-z]*)?/, replace('family', 'Firefox ($family)')) ||
+      p(/(MozillaDeveloperPreview)\/(\d+)\.(\d+)([ab]\d+[a-z]*)?/) ||
+      p(/(SeaMonkey|Fennec|Camino)\/(\d+)\.(\d+)([ab]?\d+[a-z]*)/) ||
+      // e.g.: Flock/2.0b2
+      p(/(Flock)\/(\d+)\.(\d+)(b\d+?)/) ||
+  
+      // e.g.: Fennec/0.9pre
+      p(/(Fennec)\/(\d+)\.(\d+)(pre)/) ||
+      p(/(Navigator)\/(\d+)\.(\d+)\.(\d+)/,   replace('family', 'Netscape')) ||
+      p(/(Navigator)\/(\d+)\.(\d+)([ab]\d+)/, replace('family', 'Netscape')) ||
+      p(/(Netscape6)\/(\d+)\.(\d+)\.(\d+)/,   replace('family', 'Netscape')) ||
+      p(/(MyIBrow)\/(\d+)\.(\d+)/,            replace('family', 'My Internet Browser')) ||
+      p(/(Firefox).*Tablet browser (\d+)\.(\d+)\.(\d+)/, replace('family', 'MicroB')) ||
+      // Opera will stop at 9.80 and hide the real version in the Version string.
+      // see: http://dev.opera.com/articles/view/opera-ua-string-changes/
+      p(/(Opera)\/.+Opera Mobi.+Version\/(\d+)\.(\d+)/, replace('family', 'Opera Mobile')) ||
+      p(/(Opera)\/9.80.*Version\/(\d+)\.(\d+)(?:\.(\d+))?/) ||
+  
+      // Palm WebOS looks a lot like Safari.
+      p(/(webOS)\/(\d+)\.(\d+)/, replace('family', 'Palm webOS')) ||
+  
+      p(/(Firefox)\/(\d+)\.(\d+)\.(\d+(?:pre)?) \(Swiftfox\)/,  replace('family', 'Swiftfox')) ||
+      p(/(Firefox)\/(\d+)\.(\d+)([ab]\d+[a-z]*)? \(Swiftfox\)/, replace('family', 'Swiftfox')) ||
+  
+      // catches lower case konqueror
+      p(/(konqueror)\/(\d+)\.(\d+)\.(\d+)/, replace('family', 'Konqueror')) ||
+  
+      // End Special Cases -----------------------------------------------------------------
+  
+  
+    
+      // Main Cases - this catches > 50% of all browsers------------------------------------
+      // Browser/v1.v2.v3
+      p(browser_slash_v123_names_pattern + '/(\\d+)\.(\\d+)\.(\\d+)') ||
+      // Browser/v1.v2
+      p(browser_slash_v12_names_pattern + '/(\\d+)\.(\\d+)') ||
+      // Browser v1.v2.v3 (space instead of slash)
+      p(/(iRider|Crazy Browser|SkipStone|iCab|Lunascape|Sleipnir|Maemo Browser) (\d+)\.(\d+)\.(\d+)/) ||
+      // Browser v1.v2 (space instead of slash)
+      p(/(iCab|Lunascape|Opera|Android) (\d+)\.(\d+)/) ||
+      p(/(IEMobile) (\d+)\.(\d+)/, replace('family', 'IE Mobile')) ||
+      // DO THIS AFTER THE EDGE CASES ABOVE!
+      p(/(Firefox)\/(\d+)\.(\d+)\.(\d+)/) ||
+      p(/(Firefox)\/(\d+)\.(\d+)(pre|[ab]\d+[a-z]*)?/) ||
+      // End Main Cases --------------------------------------------------------------------
+    
+      // Special Cases ---------------------------------------------------------------------
+      p(/(Obigo|OBIGO)[^\d]*(\d+)(?:.(\d+))?/, replace('family', 'Obigo')) ||
+      p(/(MAXTHON|Maxthon) (\d+)\.(\d+)/, replace('family', 'Maxthon')) ||
+      p(/(Maxthon|MyIE2|Uzbl|Shiira)/, replace('v1', '0')) ||
+      p(/(PLAYSTATION) (\d+)/, replace('family', 'PlayStation')) ||
+      p(/(PlayStation Portable)[^\d]+(\d+).(\d+)/) ||
+      p(/(BrowseX) \((\d+)\.(\d+)\.(\d+)/) ||
+      p(/(POLARIS)\/(\d+)\.(\d+)/, replace('family', 'Polaris')) ||
+      p(/(BonEcho)\/(\d+)\.(\d+)\.(\d+)/, replace('family', 'Bon Echo')) ||
+      p(/(iPhone) OS (\d+)_(\d+)(?:_(\d+))?/) ||
+      p(/(iPad).+ OS (\d+)_(\d+)(?:_(\d+))?/) ||
+      p(/(Avant)/, replace('v1', '1')) ||
+      p(/(Nokia)[EN]?(\d+)/) ||
+      p(/(Black[bB]erry).+Version\/(\d+)\.(\d+)\.(\d+)/, replace('family', 'Blackberry')) ||
+      p(/(Black[bB]erry)\s?(\d+)/, replace('family', 'Blackberry')) ||
+      p(/(OmniWeb)\/v(\d+)\.(\d+)/) ||
+      p(/(Blazer)\/(\d+)\.(\d+)/, replace('family', 'Palm Blazer')) ||
+      p(/(Pre)\/(\d+)\.(\d+)/, replace('family', 'Palm Pre')) ||
+      p(/(Links) \((\d+)\.(\d+)/) ||
+      p(/(QtWeb) Internet Browser\/(\d+)\.(\d+)/) ||
+      p(/\(iPad;.+(Version)\/(\d+)\.(\d+)(?:\.(\d+))?.*Safari\//, replace('family', 'iPad')) ||
+      p(/(Version)\/(\d+)\.(\d+)(?:\.(\d+))?.*Safari\//, replace('family', 'Safari')) ||
+      p(/(OLPC)\/Update(\d+)\.(\d+)/) ||
+      p(/(OLPC)\/Update()\.(\d+)/, replace('v1', '0')) ||
+      p(/(SamsungSGHi560)/, replace('family', 'Samsung SGHi560')) ||
+      p(/^(SonyEricssonK800i)/, replace('family', 'Sony Ericsson K800i')) ||
+      p(/(Teleca Q7)/) ||
+      p(/(MSIE) (\d+)\.(\d+)/, replace('family', 'IE')) ||
+      // End Special Cases -----------------------------------------------------------------
+      {family: 'Other'}
+    
+    )
+  }
+  
+  //
+  // Simply returns a nicely formatted user agent.
+  //
+  function prettyParse(useragent) {
+    var components = parse(useragent),
+        family = components.family,
+        v1 = components.v1,
+        v2 = components.v2,
+        v3 = components.v3,
+        prettyString = family
+  
+    if (v1) {
+      prettyString += ' ' + v1
+      if (v2) {
+        prettyString += '.' + v2
+        if (v3) {
+          var match = v3.match(/^[0-9]/)
+          prettyString += (match ? '.' : ' ') + v3
+        }
+      }
+    }
+    return prettyString
+  }
