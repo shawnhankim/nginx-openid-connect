@@ -870,8 +870,6 @@ function decryptSession(r, cipherText, vector, key1) {
         res.then(function(buf){ 
             r.log('### decrypted session: ' + buf);
             r.log("### decrypted session str 1: " + arrayBufferToString(buf));
-            r.log("### decrypted session str 2: " + arrayBufferToString(buf).toString());
-            r.log("### decrypted session str 3: " + arrayBufferToString(buf).toString('hex'));
         }).catch (function (err) {
             r.log('### Error: ' + err.message);
         });
@@ -890,9 +888,9 @@ function generateSession(r) {
         "timestamp" : dt.getHours() + ":" + dt.getMinutes()
     };
     var strSession = JSON.stringify(sessionObj);
-    if (strSession.length % 2 == 1) {
-        strSession += ' ';
-    }
+    // if (strSession.length % 2 == 1) {
+    //     strSession += ' ';
+    // }
     r.log("### JSON   session: " + sessionObj)
     r.log("### string session: " + strSession)
     r.log("### request ID: " + r.variables.request_id)
