@@ -5,13 +5,19 @@
  */
 
 // Constants for common error message. These will be cleaned up.
-var ERR_CFG_VARS     = 'OIDC missing configuration variables: ';
-var ERR_AC_TOKEN     = 'OIDC Access Token validation error: ';
-var ERR_ID_TOKEN     = 'OIDC ID Token validation error: ';
-var ERR_IDP_AUTH     = 'OIDC unexpected response from IdP when sending AuthZ code (HTTP ';
-var ERR_TOKEN_RES    = 'OIDC AuthZ code sent but token response is not JSON. ';
+var ERR_CFG_VARS              = 'OIDC missing configuration variables: ';
+var ERR_AC_TOKEN              = 'OIDC Access Token validation error: ';
+var ERR_ID_TOKEN              = 'OIDC ID Token validation error: ';
+var ERR_IDP_AUTH              = 'OIDC unexpected response from IdP when sending AuthZ code (HTTP ';
+var ERR_TOKEN_RES             = 'OIDC AuthZ code sent but token response is not JSON. ';
+var ERR_ENCRYPT_SESSION       = 'session encryption error: ';
 var MSG_OK_REFRESH_TOKEN      = 'OIDC refresh success, updating id_token for ';
 var MSG_REPLACE_REFRESH_TOKEN = 'OIDC replacing previous refresh token (';
+var ERR_INVALID_SESSION       = '{ "message": "Invalid session cookie"}';
+
+// Constans for common type
+var TYPE_AUTH       = 1
+var TYPE_PROXY_PASS = 2
 
 // Flag to check if there is still valid session cookie. It is used by auth()
 // and validateIdToken().
@@ -40,20 +46,25 @@ export default {
 
 // Start OIDC with either intializing new session or refershing token:
 //
-// 1. Start IdP authorization:
+// 1. Validate session:
+//  - Check if there exists a session, and if it is valid. 
+//  - Otherwise generate a new session.
+// 
+// 2. Start IdP authorization:
 //  - Check all necessary configuration variables (referenced only by NJS).
 //  - Redirect client to the IdP login page w/ the cookies we need for state.
 //
-// 2. Refresh ID / access token:
+// 3. Refresh ID / access token:
 //  - Pass the refresh token to the /_refresh location so that it can be
 //    proxied to the IdP in exchange for a new id_token and access_token.
-//
 function auth(r) {
-    if (!r.variables.refresh_token || r.variables.refresh_token == '-') {
-        startIdPAuthZ(r);
-        return;
+    if (!isValidSession(r, false, TYPE_AUTH, '')) {
+        if (!r.variables.refresh_token || r.variables.refresh_token == '-') {
+            startIdPAuthZ(r);
+            return;
+        }
     }
-    refershToken(r);
+    refreshToken(r);
 }
 
 // Request OIDC token, and handle IDP response (error or successful token).
@@ -205,6 +216,8 @@ function logout(r) {
     r.variables.id_token      = '-';
     r.variables.access_token  = '-';
     r.variables.refresh_token = '-';
+    r.variables.session_id    = '-';
+    r.variables.iv            = '-';
     var logout_endpoint = generateCustomEndpoint(r,
         r.variables.oidc_logout_endpoint,
         r.variables.oidc_custom_logout_path_params_enable,
@@ -291,8 +304,6 @@ function redirectPostLogout(r) {
 // - Redirect the client to the IdP login page w/ the cookies we need for state.
 //
 function startIdPAuthZ(r) {
-    r.log('### user-agent: ' + r.variables.http_user_agent)
-    generateSession(r)
     newSession = true;
 
     var configs = ['authz_endpoint', 'scopes', 'hmac_key', 'cookie_flags'];
@@ -399,7 +410,7 @@ function handleSuccessfulRefreshResponse(r, res) {
 //  - https://openid.net/specs/openid-connect-core-1_0.html#RefreshErrorResponse
 //  - https://openid.net/specs/openid-connect-core-1_0.html#RefreshTokenResponse
 //
-function refershToken(r) {
+function refreshToken(r) {
     setTokenParams(r)
     r.subrequest('/_refresh', 'token=' + r.variables.refresh_token, respHandler);
     function respHandler(res) {
@@ -482,7 +493,6 @@ function handleSuccessfulTokenResponse(r, res) {
              r.return(500);
              return;
         }
-
         // Add opaque ID token and access token to key/value store
         r.variables.new_id_token     = tokenset.id_token;
         r.variables.new_access_token = tokenset.access_token;
@@ -494,16 +504,45 @@ function handleSuccessfulTokenResponse(r, res) {
         } else {
             r.warn('OIDC no refresh token');
         }
-        // Set cookie with request ID that is the key of each ID/access token,
-        // and continue to process the original request.
-        r.log('OIDC success, creating session '    + r.variables.request_id);
-        r.headersOut['Set-Cookie'] = 'auth_token=' + r.variables.request_id + 
-                                     '; ' + r.variables.oidc_cookie_flags;
-        r.return(302, r.variables.redirect_base + r.variables.cookie_auth_redir);
+        generateSessionCookieAndRedirectBase(r)
     } catch (e) {
         r.error(ERR_TOKEN_RES + res.responseBody);
         r.return(502);
     }
+}
+
+// Generate session, set cookie with request ID that is the key of each ID/access
+// token, and continue to process the original request.
+function generateSessionCookieAndRedirectBase(r) {
+    r.log("start generating session cookie and redirecting to base request...");
+
+    var time = new Date(Date.now());
+    var jsonSession = {
+        "userAgent" : r.variables.http_user_agent,
+        "clientID"  : r.variables.oidc_client,
+        "timestamp" : time.getHours() + ":" + time.getMinutes()
+    };
+    var strSession = JSON.stringify(jsonSession);
+
+    importKey(r).then(function(key){ // key: CryptoKey object
+        var buffer  = strToArrayBuffer(strSession);
+        var vector  = crypto.getRandomValues(new Uint16Array(16));
+        var encrypted = crypto.subtle.encrypt(
+            {name: 'AES-GCM', iv: vector, length: 256}, key, buffer
+        )
+        encrypted.then(function (cipherText) {
+            r.headersOut['Set-Cookie'] = [
+                'auth_token=' + r.variables.request_id     + '; ' +
+                                r.variables.oidc_cookie_flags
+            ];
+            r.variables.new_session_id = cipherText;
+            r.variables.new_iv         = vector;
+            r.return(302, r.variables.redirect_base + r.variables.cookie_auth_redir);
+        }).catch (function (err) {
+            r.error(ERR_ENCRYPT_SESSION + err.message);
+            r.return(500, ERR_ENCRYPT_SESSION + err.message);
+        });
+    });
 }
 
 // Check if token is valid using `auth_jwt` directives and Node.JS functions:
@@ -543,7 +582,7 @@ function getAuthZArgs(r) {
     var cookieFlags = r.variables.oidc_cookie_flags;
     r.headersOut['Set-Cookie'] = [
         'auth_redir=' + r.variables.request_uri + '; ' + cookieFlags,
-        'auth_nonce=' + noncePlain + '; ' + cookieFlags
+        'auth_nonce=' + noncePlain              + '; ' + cookieFlags
     ];
     r.variables.nonce_hash = nonceHash;
 
@@ -756,6 +795,14 @@ function isValidTokenSet(r, tokenset) {
 
 // Validate ID/access token and pass backend proxy.
 function validateTokenPassProxy(r, uri) {
+    if (isValidSession(r, true, TYPE_PROXY_PASS, uri)) {
+        return
+    }
+    r.return(401, ERR_INVALID_SESSION)
+} 
+
+// Pass proxy with token.
+function reqProxyPass(r, uri) {
     r.subrequest(uri, function(res) {
         if (res.status != 200) {
             r.error('validate token and pass backend proxy: ' + res.status);
@@ -765,85 +812,8 @@ function validateTokenPassProxy(r, uri) {
         r.return(res.status, res.responseBody)
     });
 }
-function fromBase64String(str) {
-    var alpha = 
-    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-    var value = [];
-    var index = 0;
-    var destIndex  = 0;
-    var padding = false;
-    while (true) {
 
-        var first  = getNextChr(str, index, padding, alpha);
-        var second = getNextChr(str, first .nextIndex, first .padding, alpha);
-        var third  = getNextChr(str, second.nextIndex, second.padding, alpha);
-        var fourth = getNextChr(str, third .nextIndex, third .padding, alpha);
-
-        index = fourth.nextIndex;
-        padding = fourth.padding;
-
-        // ffffffss sssstttt ttffffff
-        var base64_first  = first.code  == null ? 0 : first.code;
-        var base64_second = second.code == null ? 0 : second.code;
-        var base64_third  = third.code  == null ? 0 : third.code;
-        var base64_fourth = fourth.code == null ? 0 : fourth.code;
-
-        var a = (( base64_first << 2) & 0xFC ) | ((base64_second>>4) & 0x03);
-        var b = (( base64_second<< 4) & 0xF0 ) | ((base64_third >>2) & 0x0F);
-        var c = (( base64_third << 6) & 0xC0 ) | ((base64_fourth>>0) & 0x3F);
-
-        value [destIndex++] = a;
-        if (!third.padding) {
-            value [destIndex++] = b;
-        } else {
-            break;
-        }
-        if (!fourth.padding) {
-            value [destIndex++] = c;
-        } else {
-            break;
-        }
-        if (index >= str.length) {
-            break;
-        }
-    }
-    return value;
-}
-
-function getNextChr(str, index, equalSignReceived, alpha) {
-    var chr = null;
-    var code = 0;
-    var padding = equalSignReceived;
-    while (index < str.length) {
-        chr = str.charAt(index);
-        if (chr == " " || chr == "\r" || chr == "\n" || chr == "\t") {
-            index++;
-            continue;
-        }
-        if (chr == "=") {
-            padding = true;
-        } else {
-            if (equalSignReceived) {
-                throw new Error("Invalid Base64 Endcoding character \"" 
-                    + chr + "\" with code " + str.charCodeAt(index) 
-                    + " on position " + index 
-                    + " received afer an equal sign (=) padding "
-                    + "character has already been received. "
-                    + "The equal sign padding character is the only "
-                    + "possible padding character at the end.");
-            }
-            code = alpha.indexOf(chr);
-            if (code == -1) {
-                throw new Error("Invalid Base64 Encoding character \"" 
-                    + chr + "\" with code " + str.charCodeAt(index) 
-                    + " on position " + index + ".");
-            }
-        }
-        break;
-    }
-    return { character: chr, code: code, padding: padding, nextIndex: ++index};
-}
-
+// Convert string to array buffer.
 function strToArrayBuffer(str) {
     var buf = new ArrayBuffer(str.length * 2);
     var bufView = new Uint16Array(buf);
@@ -852,103 +822,66 @@ function strToArrayBuffer(str) {
     }
     return buf;
 }
-  
+
+// Convert array buffer to string.
 function arrayBufferToString(buffer) {
     return String.fromCharCode.apply(null, new Uint16Array(buffer));
 }
 
-function decryptSession(r, cipherText, vector, key1) {
-    var keyData = Buffer.from(r.variables.session_key, 'base64');
-    // var vector    = crypto.getRandomValues(new Uint32Array(16));
-    r.log('### vector: ' + vector)
-    var resKey = crypto.subtle.importKey('raw', keyData, 'AES-GCM', false,
-                                            ['encrypt', 'decrypt']);
-    resKey.then(function(key){ // CryptoKey object
+// Check if session cookie is valid.
+function isValidSession(r, isErrReturn, type, uri) {
+    r.log('Start checking if there is an existing session...')
+    if (!r.variables.cookie_auth_token || r.variables.cookie_auth_token == '-') {
+        return false
+    }
+    if (!r.variables.session_id || r.variables.session_id == '-') {
+        return false
+    }
+    if (!r.variables.iv || r.variables.iv == '-') {
+        return false
+    }
+    return decryptAndValidateSession(
+        r, r.variables.session_id, r.variables.iv, isErrReturn, type, uri
+    )
+}
+
+// Validate session cookie after decrypting it, and start OIDC authorization.
+function decryptAndValidateSession(
+    r, cipherText, vector, isErrReturn, type, uri
+) {
+    r.log('start decrypting and validating encrypted session cookie...');
+    importKey(r).then(function(key){ // key: CryptoKey object
         var res = crypto.subtle.decrypt(
             {name: 'AES-GCM', iv: vector}, key, cipherText
         );
         res.then(function(buf){ 
-            r.log('### decrypted session: ' + buf);
-            r.log("### decrypted session str 1: " + arrayBufferToString(buf));
+            var sessionStr = arrayBufferToString(buf);
+            var sessionObj = JSON.parse(sessionStr);
+            if (sessionObj.userAgent != r.variables.http_user_agent || 
+                sessionObj.clientID  != r.variables.oidc_client) {
+                r.log('invalid session cookie')
+                if (isErrReturn) {
+                    r.return(401, ERR_INVALID_SESSION)
+                    return false
+                }
+                if (type == TYPE_AUTH && (!r.variables.refresh_token || 
+                                           r.variables.refresh_token == '-')) {
+                    startIdPAuthZ(r);
+                    return true;
+                }
+                return false
+            }
+            if (type == TYPE_PROXY_PASS) {
+                reqProxyPass(r, uri);
+            }
+            return true
         }).catch (function (err) {
-            r.log('### Error: ' + err.message);
+            r.log('session validation error: ' + err.message);
+            return false
         });
     });
+    return true
 }
-
-// Generate session ID
-function generateSession(r) {
-    r.log("### start generating session ID");
-
-    var dt = new Date(Date.now());
-    var sessionObj = {
-        "userAgent" : r.variables.http_user_agent,
-        "clientID"  : r.variables.oidc_client,
-        "requestID" : r.variables.request_id,
-        "timestamp" : dt.getHours() + ":" + dt.getMinutes()
-    };
-    var strSession = JSON.stringify(sessionObj);
-    // if (strSession.length % 2 == 1) {
-    //     strSession += ' ';
-    // }
-    r.log("### JSON   session: " + sessionObj)
-    r.log("### string session: " + strSession)
-    r.log("### request ID: " + r.variables.request_id)
-
-    var keyData = Buffer.from(r.variables.session_key, 'base64');
-    var buffer  = strToArrayBuffer(strSession);
-    var vector  = crypto.getRandomValues(new Uint32Array(16));
-    var resKey  = crypto.subtle.importKey('raw', keyData, 'AES-GCM', false,
-                                            ['encrypt', 'decrypt']);
-    resKey.then(function(key){ // CryptoKey object
-        var encrypted = crypto.subtle.encrypt(
-            {name: 'AES-GCM', iv: vector, length: 256}, key, buffer
-        )
-        encrypted.then(function (cipherText) {
-            r.log('### Cipher Text 1: ' + arrayBufferToString(cipherText).toString('hex'));
-            decryptSession(r, cipherText, vector, key)
-        }).then(function (plainText) {
-            r.log('### Plain Text: ' + arrayBufferToString(plainText).toString());
-        }).catch (function (err) {
-            r.log('### Error: ' + err.message);
-        });
-    });
-    //     var encrypted = crypto.subtle.encrypt(
-    //         {name: 'AES-GCM', iv: vector}, key, buffer
-    //     )
-    //     encrypted.then(function(res){ // ArrayBuffer object
-    //         var encryptSession = arrayBufferToString(res).toString('hex');
-    //         r.log("### encrypted session ID str (hex): " + encryptSession)
-    //         decryptSession(r, encryptSession, vector)
-    //     })
-    //     .catch(function(error) {
-    //         r.log("### encrypted session exception: " + error)
-    //     });
-    // })
-    // .catch(function(error) {
-    //     r.log("### import key exception: " + error)
-    // });
-
-    // var encryptSessionId = encryptString(strSession, key, iv)
-    // r.log("### encrypted session ID: " + encryptSessionId)
-    // var decryptSessionId = decryptString(encryptSessionId, key, iv)
-    // r.log("### decrypted session ID: " + decryptSessionId)
-
-    return strSession;
-}
-
-// function encryptString(string, key, iv) {
-//     var cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
-//     cipher.update(string, 'utf-8', 'hex');
-//     return cipher.final('hex');
-// }
-
-// function decryptString(c, string, key, iv) {
-//     var decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
-//     decipher.update(string, 'hex', 'utf-8');
-//     return decipher.final('utf-8');
-// }
-
 
 // Extract ID/access token from the request header.
 function extractToken(r, key, is_bearer, validation_uri, msg) {
@@ -978,6 +911,14 @@ function extractToken(r, key, is_bearer, validation_uri, msg) {
     return [true, msg]
 }
 
+// Returns a Promise that fulfills with the imported key as a CryptoKey object.
+function importKey(r) {
+    var keyData = Buffer.from(r.variables.session_key, 'base64');
+    return crypto.subtle.importKey(
+        'raw', keyData, 'AES-GCM', false, ['encrypt', 'decrypt']
+    );
+}
+
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  *                                                                             *
  *                      3. Common Functions for Testing                        *
@@ -1004,248 +945,3 @@ function testExtractToken (r) {
     var body = msg + '}\n';
     r.return(200, body);
 }
-
-
-var browser_slash_v123_names = [
-    'ANTGalio',
-    'Camino',
-    'Chrome',
-    'Demeter',
-    'Dillo',
-    'Epiphany',
-    'Fennec',
-    'Flock',
-    'Fluid',
-    'Fresco',
-    'Galeon',
-    'GranParadiso',
-    'IceWeasel',
-    'Iceape',
-    'Iceweasel',
-    'Iris',
-    'Iron',
-    'Jasmine',
-    'K-Meleon',
-    'Kazehakase',
-    'Konqueror',
-    'Lobo',
-    'Lunascape',
-    'Lynx',
-    'Maxthon',
-    'Midori',
-    'NetFront',
-    'NetNewsWire',
-    'Netscape',
-    'OmniWeb',
-    'Opera Mini',
-    'SeaMonkey',
-    'Shiira',
-    'Sleipnir',
-    'Sunrise',
-    'Vienna',
-    'Vodafone',
-    'WebPilot',
-    'iCab'
-  ],
-  browser_slash_v123_names_pattern = '(' + browser_slash_v123_names.join('|') + ')'
-  
-  var browser_slash_v12_names = [
-    'Arora',
-    'BOLT',
-    'Bolt',
-    'Camino',
-    'Chrome',
-    'Dillo',
-    'Dolfin',
-    'Epiphany',
-    'Fennec',
-    'Flock',
-    'Galeon',
-    'GranParadiso',
-    'IBrowse',
-    'IceWeasel',
-    'Iceape',
-    'Iceweasel',
-    'Iron',
-    'Jasmine',
-    'K-Meleon',
-    'Kazehakase',
-    'Konqueror',
-    'Lunascape',
-    'Lynx',
-    'Maxthon',
-    'Midori',
-    'NetFront',
-    'NetNewsWire',
-    'Netscape',
-    'Opera Mini',
-    'Opera',
-    'Orca',
-    'Phoenix',
-    'SeaMonkey',
-    'Shiira',
-    'Sleipnir',
-    'Space Bison',
-    'Stainless',
-    'Vienna',
-    'Vodafone',
-    'WebPilot',
-    'iCab',
-  ],
-  browser_slash_v12_names_pattern = '(' + browser_slash_v12_names.join('|') + ')'
-  
-  var replace = function(type, replacement) {
-    return function(components) {
-      component_matches = replacement.match(/\$([a-z]+)/g)
-      if (component_matches)
-        component_matches.forEach(function(match) {
-          var component = match.substring(1)
-          components[type] = replacement.replace(match, components[component])
-        })
-      else
-        components[type] = replacement
-    }
-  }
-  
-  //
-  // Given a User-Agent HTTP header string, parse it to extract the browser "family", 
-  // (eg, "Safari", "Firefox", "IE"), and the major, minor, and tertiary version numbers.
-  //
-  // Note: Some browsers have a quaternary number, but this code stops at tertiary version numbers.
-  //
-  function parse(useragent) {
-  
-    var p = function() {
-      var args = Array.prototype.slice.call(arguments, 0),
-          regexp = args.shift()
-          callbacks = args,
-          match = useragent.match(regexp)
-  
-      if (match) {
-        var components = {
-          family: match[1],
-          v1: match[2],
-          v2: match[3],
-          v3: match[4]
-        }
-        callbacks.forEach(function(cb) {
-          cb(components)
-        })
-  
-        return components
-      }
-      else
-        return false
-    }
-  
-  
-    return (
-      // Special Cases ---------------------------------------------------------------------
-  
-      // must go before Opera
-      p(/^(Opera)\/(\d+)\.(\d+) \(Nintendo Wii/, replace('family', 'Wii')) ||
-      //  // must go before Browser/v1.v2 - eg: Minefield/3.1a1pre
-      p(/(Namoroka|Shiretoko|Minefield)\/(\d+)\.(\d+)\.(\d+(?:pre)?)/, replace('family', 'Firefox ($family)')) ||
-      p(/(Namoroka|Shiretoko|Minefield)\/(\d+)\.(\d+)([ab]\d+[a-z]*)?/, replace('family', 'Firefox ($family)')) ||
-      p(/(MozillaDeveloperPreview)\/(\d+)\.(\d+)([ab]\d+[a-z]*)?/) ||
-      p(/(SeaMonkey|Fennec|Camino)\/(\d+)\.(\d+)([ab]?\d+[a-z]*)/) ||
-      // e.g.: Flock/2.0b2
-      p(/(Flock)\/(\d+)\.(\d+)(b\d+?)/) ||
-  
-      // e.g.: Fennec/0.9pre
-      p(/(Fennec)\/(\d+)\.(\d+)(pre)/) ||
-      p(/(Navigator)\/(\d+)\.(\d+)\.(\d+)/,   replace('family', 'Netscape')) ||
-      p(/(Navigator)\/(\d+)\.(\d+)([ab]\d+)/, replace('family', 'Netscape')) ||
-      p(/(Netscape6)\/(\d+)\.(\d+)\.(\d+)/,   replace('family', 'Netscape')) ||
-      p(/(MyIBrow)\/(\d+)\.(\d+)/,            replace('family', 'My Internet Browser')) ||
-      p(/(Firefox).*Tablet browser (\d+)\.(\d+)\.(\d+)/, replace('family', 'MicroB')) ||
-      // Opera will stop at 9.80 and hide the real version in the Version string.
-      // see: http://dev.opera.com/articles/view/opera-ua-string-changes/
-      p(/(Opera)\/.+Opera Mobi.+Version\/(\d+)\.(\d+)/, replace('family', 'Opera Mobile')) ||
-      p(/(Opera)\/9.80.*Version\/(\d+)\.(\d+)(?:\.(\d+))?/) ||
-  
-      // Palm WebOS looks a lot like Safari.
-      p(/(webOS)\/(\d+)\.(\d+)/, replace('family', 'Palm webOS')) ||
-  
-      p(/(Firefox)\/(\d+)\.(\d+)\.(\d+(?:pre)?) \(Swiftfox\)/,  replace('family', 'Swiftfox')) ||
-      p(/(Firefox)\/(\d+)\.(\d+)([ab]\d+[a-z]*)? \(Swiftfox\)/, replace('family', 'Swiftfox')) ||
-  
-      // catches lower case konqueror
-      p(/(konqueror)\/(\d+)\.(\d+)\.(\d+)/, replace('family', 'Konqueror')) ||
-  
-      // End Special Cases -----------------------------------------------------------------
-  
-  
-    
-      // Main Cases - this catches > 50% of all browsers------------------------------------
-      // Browser/v1.v2.v3
-      p(browser_slash_v123_names_pattern + '/(\\d+)\.(\\d+)\.(\\d+)') ||
-      // Browser/v1.v2
-      p(browser_slash_v12_names_pattern + '/(\\d+)\.(\\d+)') ||
-      // Browser v1.v2.v3 (space instead of slash)
-      p(/(iRider|Crazy Browser|SkipStone|iCab|Lunascape|Sleipnir|Maemo Browser) (\d+)\.(\d+)\.(\d+)/) ||
-      // Browser v1.v2 (space instead of slash)
-      p(/(iCab|Lunascape|Opera|Android) (\d+)\.(\d+)/) ||
-      p(/(IEMobile) (\d+)\.(\d+)/, replace('family', 'IE Mobile')) ||
-      // DO THIS AFTER THE EDGE CASES ABOVE!
-      p(/(Firefox)\/(\d+)\.(\d+)\.(\d+)/) ||
-      p(/(Firefox)\/(\d+)\.(\d+)(pre|[ab]\d+[a-z]*)?/) ||
-      // End Main Cases --------------------------------------------------------------------
-    
-      // Special Cases ---------------------------------------------------------------------
-      p(/(Obigo|OBIGO)[^\d]*(\d+)(?:.(\d+))?/, replace('family', 'Obigo')) ||
-      p(/(MAXTHON|Maxthon) (\d+)\.(\d+)/, replace('family', 'Maxthon')) ||
-      p(/(Maxthon|MyIE2|Uzbl|Shiira)/, replace('v1', '0')) ||
-      p(/(PLAYSTATION) (\d+)/, replace('family', 'PlayStation')) ||
-      p(/(PlayStation Portable)[^\d]+(\d+).(\d+)/) ||
-      p(/(BrowseX) \((\d+)\.(\d+)\.(\d+)/) ||
-      p(/(POLARIS)\/(\d+)\.(\d+)/, replace('family', 'Polaris')) ||
-      p(/(BonEcho)\/(\d+)\.(\d+)\.(\d+)/, replace('family', 'Bon Echo')) ||
-      p(/(iPhone) OS (\d+)_(\d+)(?:_(\d+))?/) ||
-      p(/(iPad).+ OS (\d+)_(\d+)(?:_(\d+))?/) ||
-      p(/(Avant)/, replace('v1', '1')) ||
-      p(/(Nokia)[EN]?(\d+)/) ||
-      p(/(Black[bB]erry).+Version\/(\d+)\.(\d+)\.(\d+)/, replace('family', 'Blackberry')) ||
-      p(/(Black[bB]erry)\s?(\d+)/, replace('family', 'Blackberry')) ||
-      p(/(OmniWeb)\/v(\d+)\.(\d+)/) ||
-      p(/(Blazer)\/(\d+)\.(\d+)/, replace('family', 'Palm Blazer')) ||
-      p(/(Pre)\/(\d+)\.(\d+)/, replace('family', 'Palm Pre')) ||
-      p(/(Links) \((\d+)\.(\d+)/) ||
-      p(/(QtWeb) Internet Browser\/(\d+)\.(\d+)/) ||
-      p(/\(iPad;.+(Version)\/(\d+)\.(\d+)(?:\.(\d+))?.*Safari\//, replace('family', 'iPad')) ||
-      p(/(Version)\/(\d+)\.(\d+)(?:\.(\d+))?.*Safari\//, replace('family', 'Safari')) ||
-      p(/(OLPC)\/Update(\d+)\.(\d+)/) ||
-      p(/(OLPC)\/Update()\.(\d+)/, replace('v1', '0')) ||
-      p(/(SamsungSGHi560)/, replace('family', 'Samsung SGHi560')) ||
-      p(/^(SonyEricssonK800i)/, replace('family', 'Sony Ericsson K800i')) ||
-      p(/(Teleca Q7)/) ||
-      p(/(MSIE) (\d+)\.(\d+)/, replace('family', 'IE')) ||
-      // End Special Cases -----------------------------------------------------------------
-      {family: 'Other'}
-    
-    )
-  }
-  
-  //
-  // Simply returns a nicely formatted user agent.
-  //
-  function prettyParse(useragent) {
-    var components = parse(useragent),
-        family = components.family,
-        v1 = components.v1,
-        v2 = components.v2,
-        v3 = components.v3,
-        prettyString = family
-  
-    if (v1) {
-      prettyString += ' ' + v1
-      if (v2) {
-        prettyString += '.' + v2
-        if (v3) {
-          var match = v3.match(/^[0-9]/)
-          prettyString += (match ? '.' : ' ') + v3
-        }
-      }
-    }
-    return prettyString
-  }
