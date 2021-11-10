@@ -17,7 +17,6 @@ var btnIdToken       = document.getElementById('id-token');
 var btnAcToken       = document.getElementById('ac-token');
 var btnCookie        = document.getElementById('cookie');
 var btnAPIWithCookie = document.getElementById('api-with-cookie');
-var btnAPIWithBearer = document.getElementById('api-with-bearer');
 var btnUserInfo      = document.getElementById('user-info');
 var jsonViewer       = new JSONViewer();
 var viewerJSON       = document.querySelector("#json").appendChild(jsonViewer.getContainer());
@@ -44,7 +43,6 @@ var initButtonsBeforeSignIn = function () {
   btnAcToken.disabled       = true
   btnCookie.disabled        = true
   btnAPIWithCookie.disabled = true
-  btnAPIWithBearer.disabled = true
   btnUserInfo.disabled      = true
   isSignedIn                = false;
   showLoginBtnTitle(TITLE_SIGNIN);
@@ -55,7 +53,6 @@ var initButtonsAfterSignIn = function () {
   btnAcToken.disabled       = false
   btnCookie.disabled        = false
   btnAPIWithCookie.disabled = false
-  btnAPIWithBearer.disabled = false
   btnUserInfo.disabled      = false
   isSignedIn                = true;
   showLoginBtnTitle(TITLE_SIGNOUT);
@@ -119,7 +116,7 @@ var eventHandlerProxiedAPIWithCookie = function (evt) {
   var headers = {};
   doAPIRequest(
     evt,
-    '/v1/api/2', 
+    '/v1/api/4', 
     'calling a proxied API w/ cookie + bearer...',
     'passed bearer to proxied API w/ cookie',
     headers
@@ -299,7 +296,6 @@ btnIdToken      .addEventListener('click', eventHandlerIdToken);
 btnAcToken      .addEventListener('click', eventHandlerAccessToken);
 btnCookie       .addEventListener('click', eventHandlerCookie);
 btnAPIWithCookie.addEventListener('click', eventHandlerProxiedAPIWithCookie);
-btnAPIWithBearer.addEventListener('click', eventHandlerProxiedAPIWithBearer);
 btnUserInfo     .addEventListener('click', eventHandlerUserInfo);
 
 showUserInfo(null)

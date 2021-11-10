@@ -30,10 +30,11 @@ export default {
     logout,
     redirectPostLogin,
     redirectPostLogout,
-    passProxyWithToken,
+    passProxyServer,
     passProxyWithIdToken,
     passProxyWithAccessToken,
     passProxyWithIdAccessToken,
+    passProxyWithoutToken,
     testExtractToken
 };
 
@@ -87,21 +88,23 @@ function codeExchange(r) {
     );
 }
 
-// Call backend proxy that contains headers (ID token, access token, or both)
+// Call backend proxy that contains headers (ID token, access token, both, or none)
 // based on the configuration of return_token_to_backend.
 // The 'return_token_to_backend' can be also configured by APIM.
 //
-function passProxyWithToken(r) {
+function passProxyServer(r) {
     switch(r.variables.return_token_to_backend) {
         case 'id_token':
-            passProxyWithIdToken(r)
+            passProxyWithIdToken(r);
             break;
         case 'both':
-            passProxyWithIdAccessToken(r)
+            passProxyWithIdAccessToken(r);
             break;
         case 'access_token':
+            passProxyWithAccessToken(r);
+            break;
         default: 
-            passProxyWithAccessToken(r)
+            passProxyWithoutToken(r);
     }
 }
 
@@ -128,6 +131,11 @@ function passProxyWithAccessToken(r) {
 // - Pass backend proxy server with the access token in the header.
 function passProxyWithIdAccessToken(r) {
     validateTokenPassProxy(r, '/_proxy_with_id_access_token')
+}
+
+// Call backend proxy without token in header.
+function passProxyWithoutToken(r) {
+    validateTokenPassProxy(r, '/_proxy_without_token')
 }
 
 // Validate ID token which is received from IdP (fresh or refresh token):
@@ -792,7 +800,9 @@ function extractToken(r, key, is_bearer, validation_uri, msg) {
 
 // Test for extracting bearer token from the header of API request.
 function testExtractToken (r) {
-    var msg = `{"uri":"` + r.variables.request_uri + `"`;
+    var msg = `{
+        "message": "This is to show which token is part of proxy header(s) in a server app.",
+        "uri":"` + r.variables.request_uri + `"`;
     var res = extractToken(r, 'Authorization', true, '/_access_token_validation', msg)
     if (!res[0]) {
         return 
