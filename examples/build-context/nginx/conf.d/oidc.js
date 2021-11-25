@@ -10,7 +10,6 @@ var ERR_AC_TOKEN              = 'OIDC Access Token validation error: ';
 var ERR_ID_TOKEN              = 'OIDC ID Token validation error: ';
 var ERR_IDP_AUTH              = 'OIDC unexpected response from IdP when sending AuthZ code (HTTP ';
 var ERR_TOKEN_RES             = 'OIDC AuthZ code sent but token response is not JSON. ';
-var ERR_ENCRYPT_SESSION       = 'session encryption error: ';
 var MSG_OK_REFRESH_TOKEN      = 'OIDC refresh success, updating id_token for ';
 var MSG_REPLACE_REFRESH_TOKEN = 'OIDC replacing previous refresh token (';
 var ERR_INVALID_SESSION       = '{ "message": "Invalid session cookie"}';
@@ -44,7 +43,7 @@ export default {
     testExtractToken
 };
 
-// Start OIDC with either intializing new session or refershing token:
+// Start OIDC with either intializing new session or refreshing token:
 //
 // 1. Validate session:
 //  - Check if there exists a session, and if it is valid. 
@@ -58,6 +57,8 @@ export default {
 //  - Pass the refresh token to the /_refresh location so that it can be
 //    proxied to the IdP in exchange for a new id_token and access_token.
 function auth(r) {
+    testBase64(r)
+
     if (!isValidSession(r, false, TYPE_AUTH, '')) {
         if (!r.variables.refresh_token || r.variables.refresh_token == '-') {
             startIdPAuthZ(r);
@@ -153,7 +154,7 @@ function passProxyWithoutToken(r) {
 //
 // - https://openid.net/specs/openid-connect-core-1_0.html#IDTokenValidation
 // - This function is called by the location of `_id_token_validation` which is
-//   called by either OIDC code exchange or refersh token request.
+//   called by either OIDC code exchange or refresh token request.
 // - The clients MUST validate the ID Token in the Token Response from the IdP.
 //
 function validateIdToken(r) {
@@ -183,7 +184,7 @@ function validateIdToken(r) {
 // - https://openid.net/specs/openid-connect-core-1_0.html#CodeFlowTokenValidation
 // - https://openid.net/specs/openid-connect-core-1_0.html#ImplicitTokenValidation
 // - This function is called by the location of `_access_token_validation` which
-//   is called by either OIDC code exchange or refersh token request.
+//   is called by either OIDC code exchange or refresh token request.
 // - The 'aud' claim isn't contained in general ID token from Amazon Cognito,
 //   although we can add it. Hence, the claim isn't part of this validation.
 //
@@ -217,7 +218,7 @@ function logout(r) {
     r.variables.access_token  = '-';
     r.variables.refresh_token = '-';
     r.variables.session_id    = '-';
-    r.variables.iv            = '-';
+    // r.variables.iv            = '-';
     var logout_endpoint = generateCustomEndpoint(r,
         r.variables.oidc_logout_endpoint,
         r.variables.oidc_custom_logout_path_params_enable,
@@ -334,7 +335,7 @@ function startIdPAuthZ(r) {
 // - If the Refresh Request is invalid or unauthorized, the AuthZ Server returns
 //   the Token Error Response as defined in OAuth 2.0 [RFC6749].
 //
-function handleRefershErrorResponse(r, res) {
+function handlerefreshErrorResponse(r, res) {
     var msg = 'OIDC refresh failure';
     switch(res.status) {
         case 504:
@@ -355,7 +356,7 @@ function handleRefershErrorResponse(r, res) {
     clearRefreshTokenAndReturnErr(r);
 }
 
-// Clear refersh token, and respond token error.
+// Clear refresh token, and respond token error.
 function clearRefreshTokenAndReturnErr(r) {
     r.variables.refresh_token = '-';
     r.return(302, r.variables.request_uri);
@@ -415,7 +416,7 @@ function refreshToken(r) {
     r.subrequest('/_refresh', 'token=' + r.variables.refresh_token, respHandler);
     function respHandler(res) {
         if (res.status != 200) {
-            handleRefershErrorResponse(r, res);
+            handlerefreshErrorResponse(r, res);
             clearTokenParams(r)
             return;
         }
@@ -504,45 +505,16 @@ function handleSuccessfulTokenResponse(r, res) {
         } else {
             r.warn('OIDC no refresh token');
         }
-        generateSessionCookieAndRedirectBase(r)
+        // generateSessionCookieAndRedirectBase(r)
+        r.variables.session_id = generateSession(r);
+        r.log('OIDC success, creating session '    + r.variables.session_id);
+        r.headersOut['Set-Cookie'] = 'auth_token=' + r.variables.session_id + 
+                                     '; ' + r.variables.oidc_cookie_flags;
+        r.return(302, r.variables.redirect_base + r.variables.cookie_auth_redir);
     } catch (e) {
         r.error(ERR_TOKEN_RES + res.responseBody);
         r.return(502);
     }
-}
-
-// Generate session, set cookie with request ID that is the key of each ID/access
-// token, and continue to process the original request.
-function generateSessionCookieAndRedirectBase(r) {
-    r.log("start generating session cookie and redirecting to base request...");
-
-    var time = new Date(Date.now());
-    var jsonSession = {
-        "userAgent" : r.variables.http_user_agent,
-        "clientID"  : r.variables.oidc_client,
-        "timestamp" : time.getHours() + ":" + time.getMinutes()
-    };
-    var strSession = JSON.stringify(jsonSession);
-
-    importKey(r).then(function(key){ // key: CryptoKey object
-        var buffer  = strToArrayBuffer(strSession);
-        var vector  = crypto.getRandomValues(new Uint16Array(16));
-        var encrypted = crypto.subtle.encrypt(
-            {name: 'AES-GCM', iv: vector, length: 256}, key, buffer
-        )
-        encrypted.then(function (cipherText) {
-            r.headersOut['Set-Cookie'] = [
-                'auth_token=' + r.variables.request_id     + '; ' +
-                                r.variables.oidc_cookie_flags
-            ];
-            r.variables.new_session_id = cipherText;
-            r.variables.new_iv         = vector;
-            r.return(302, r.variables.redirect_base + r.variables.cookie_auth_redir);
-        }).catch (function (err) {
-            r.error(ERR_ENCRYPT_SESSION + err.message);
-            r.return(500, ERR_ENCRYPT_SESSION + err.message);
-        });
-    });
 }
 
 // Check if token is valid using `auth_jwt` directives and Node.JS functions:
@@ -570,7 +542,7 @@ function isValidToken(r, uri, token) {
 // - Choose a nonce for this flow for the client, and hash it for the IdP.
 //
 function getAuthZArgs(r) {
-    var noncePlain = r.variables.request_id;
+    var noncePlain = r.variables.session_id;//request_id;
     var c = require('crypto');
     var h = c.createHmac('sha256', r.variables.oidc_hmac_key).update(noncePlain);
     var nonceHash   = h.digest('base64url');
@@ -767,7 +739,7 @@ function isValidRequiredClaims(r, msgPrefix, missingClaims) {
     return true
 }
 
-// Check if (fresh or refersh) token set (ID token, access token) is valid.
+// Check if (fresh or refresh) token set (ID token, access token) is valid.
 function isValidTokenSet(r, tokenset) {
     var isErr = true;
     if (tokenset.error) {
@@ -828,21 +800,27 @@ function arrayBufferToString(buffer) {
     return String.fromCharCode.apply(null, new Uint16Array(buffer));
 }
 
-// Check if session cookie is valid.
+// Check if session cookie is valid, and generate new session id otherwise.
 function isValidSession(r, isErrReturn, type, uri) {
     r.log('Start checking if there is an existing session...')
-    if (!r.variables.cookie_auth_token || r.variables.cookie_auth_token == '-') {
-        return false
+    var valid_session_id = generateSession(r);
+    if (!r.variables.cookie_auth_token || 
+         r.variables.cookie_auth_token == '-' ||
+         r.variables.session_id != valid_session_id) {
+        return false;
     }
-    if (!r.variables.session_id || r.variables.session_id == '-') {
-        return false
-    }
-    if (!r.variables.iv || r.variables.iv == '-') {
-        return false
-    }
-    return decryptAndValidateSession(
-        r, r.variables.session_id, r.variables.iv, isErrReturn, type, uri
-    )
+    // if (!r.variables.session_id || r.variables.session_id == '-') {
+    //     // r.variables.session_id = valid_session_id;
+    //     return false;
+    // }
+    
+    // if (!r.variables.iv || r.variables.iv == '-') {
+    //     return false
+    // }
+    // return decryptAndValidateSession(
+    //     r, r.variables.session_id, r.variables.iv, isErrReturn, type, uri
+    // )
+    return true;
 }
 
 // Validate session cookie after decrypting it, and start OIDC authorization.
@@ -944,4 +922,40 @@ function testExtractToken (r) {
 
     var body = msg + '}\n';
     r.return(200, body);
+}
+
+function testBase64(r) {
+    generateSession(r);
+    // var data = "Hello World";
+    // var base64data = Buffer.from("Hello World").toString('base64');
+    // r.log('#### [Base64] ' + '"' + data + '" converted to Base64 is "' + base64data + '"' );
+
+    // var text = Buffer.from(base64data, 'base64').toString('utf8');
+    // r.log('#### [Base64] ' + '"' + data + '" converted from Base64 to ASCII is "' + text + '"');
+
+    // var data2 = 'Hello Earth ' + r.variables.request_id;
+    // var data3 = 'Hello Earth ';
+    // var c = require('crypto');
+    // var h = c.createHmac('sha256', r.variables.oidc_hmac_key).update(data2);
+    // var hash2   = h.digest('base64url');
+    // var h3 = c.createHmac('sha256', r.variables.oidc_hmac_key).update(data3);
+    // var hash3   = h3.digest('base64url');
+    // r.log('#### [Hash 1] ' + '"' + data2 + '" session ID is "' + hash2 + '"');
+    // r.log('#### [Hash 2] ' + '"' + data3 + '" session ID is "' + hash3 + '"');
+}
+
+// Generate session ID using remote address, user agent, and client ID.
+function generateSession(r) {
+    var time = new Date(Date.now());
+    var jsonSession = {
+        "remoteAddr": r.variables.remote_addr,
+        "userAgent" : r.variables.http_user_agent,
+        "clientID"  : r.variables.oidc_client
+    };
+    var data = JSON.stringify(jsonSession);
+    var c = require('crypto');
+    var h = c.createHmac('sha256', r.variables.oidc_hmac_key).update(data);
+    var session_id = h.digest('base64url');
+    r.log('##### [Hash] ' + '"' + data + '" session ID is "' + session_id + '"');
+    return session_id;
 }
