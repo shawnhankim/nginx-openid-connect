@@ -16,7 +16,7 @@ var btnSignin        = document.getElementById('signin');
 var btnIdToken       = document.getElementById('id-token');
 var btnAcToken       = document.getElementById('ac-token');
 var btnCookie        = document.getElementById('cookie');
-var btnAPIWithCookie = document.getElementById('api-with-cookie');
+var btnProxiedAPI    = document.getElementById('proxied-api');
 var btnUserInfo      = document.getElementById('user-info');
 var jsonViewer       = new JSONViewer();
 var viewerJSON       = document.querySelector("#json").appendChild(jsonViewer.getContainer());
@@ -39,22 +39,22 @@ var initButtons = function () {
 
 
 var initButtonsBeforeSignIn = function () {
-  btnIdToken.disabled       = true
-  btnAcToken.disabled       = true
-  btnCookie.disabled        = true
-  btnAPIWithCookie.disabled = true
-  btnUserInfo.disabled      = true
-  isSignedIn                = false;
+  btnIdToken.disabled    = true
+  btnAcToken.disabled    = true
+  btnCookie.disabled     = true
+  btnProxiedAPI.disabled = true
+  btnUserInfo.disabled   = true
+  isSignedIn             = false;
   showLoginBtnTitle(TITLE_SIGNIN);
 }
 
 var initButtonsAfterSignIn = function () {
-  btnIdToken.disabled       = false
-  btnAcToken.disabled       = false
-  btnCookie.disabled        = false
-  btnAPIWithCookie.disabled = false
-  btnUserInfo.disabled      = false
-  isSignedIn                = true;
+  btnIdToken.disabled    = false
+  btnAcToken.disabled    = false
+  btnCookie.disabled     = false
+  btnProxiedAPI.disabled = false
+  btnUserInfo.disabled   = false
+  isSignedIn             = true;
   showLoginBtnTitle(TITLE_SIGNOUT);
 }
 
@@ -112,37 +112,15 @@ var eventHandlerCookie = function (evt) {
 // Event Handler: for when clicking a 'Backend API w/ Cookie + Bearer' button.
 // - /v1/api/2: cookie is used. The bearer access token is also passed to the 
 //              backend API via `proxy_set_header Authorization` directive.
-var eventHandlerProxiedAPIWithCookie = function (evt) {
+var eventHandlerProxiedAPI = function (evt) {
   var headers = {};
   doAPIRequest(
     evt,
-    '/v1/api/4', 
-    'calling a proxied API w/ cookie + bearer...',
-    'passed bearer to proxied API w/ cookie',
+    '/v1/api/example', 
+    'calling a sample proxied API...',
+    'called a sample proxied API',
     headers
   )
-};
-
-// Event Handler: for when clicking a 'Backend API w/ Bearer w/o Cookie' button.
-// - /v1/api/3: cookie isn't used. The bearer token is only used.
-var eventHandlerProxiedAPIWithBearer = function (evt) {
-  if (!accessToken) {
-    showMessage('Get access token first!');
-    clearMessage();
-    return;
-  }
-  var headers = {
-    'Accept'       : 'application/json',
-    'Content-Type' : 'application/json',
-    'Authorization': 'Bearer ' + accessToken
-  }
-  doAPIRequest(
-    evt,
-    '/v1/api/3', 
-    'calling a proxied API w/ bearer...',
-    'passed bearer to proxied API w/o cookie',
-    headers
-  );
 };
 
 // Event Handler: for when clicking a 'Get User Info' button.
@@ -291,11 +269,11 @@ var showSignOutBtn = function () {
 };
 
 // Add event lister of each button for testing NGINX Plus OIDC integration.
-btnSignin       .addEventListener('click', eventHandlerSignIn);
-btnIdToken      .addEventListener('click', eventHandlerIdToken);
-btnAcToken      .addEventListener('click', eventHandlerAccessToken);
-btnCookie       .addEventListener('click', eventHandlerCookie);
-btnAPIWithCookie.addEventListener('click', eventHandlerProxiedAPIWithCookie);
-btnUserInfo     .addEventListener('click', eventHandlerUserInfo);
+btnSignin    .addEventListener('click', eventHandlerSignIn);
+btnIdToken   .addEventListener('click', eventHandlerIdToken);
+btnAcToken   .addEventListener('click', eventHandlerAccessToken);
+btnCookie    .addEventListener('click', eventHandlerCookie);
+btnProxiedAPI.addEventListener('click', eventHandlerProxiedAPI);
+btnUserInfo  .addEventListener('click', eventHandlerUserInfo);
 
 showUserInfo(null)
