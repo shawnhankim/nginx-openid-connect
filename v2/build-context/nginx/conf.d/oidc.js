@@ -207,19 +207,19 @@ function logout(r) {
     r.variables.refresh_token = '-';
     var logout_endpoint = generateCustomEndpoint(r,
         r.variables.oidc_logout_endpoint,
-        r.variables.oidc_custom_logout_path_params_enable,
-        r.variables.oidc_custom_logout_path_params
+        r.variables.oidc_logout_path_params_enable,
+        r.variables.oidc_logout_path_params
     );
     var queryParams = '';
 
     // OIDC RP-initiated logout.
-    if (r.variables.oidc_custom_logout_query_params_enable == 0) {
+    if (r.variables.oidc_rp_initiated_logout_enable == 1) {
         queryParams = getRPInitiatedLogoutArgs(r, idToken);
 
     // Call the IDP logout endpoint with custom query parameters
     // if the IDP doesn't support RP-initiated logout.
     } else {
-        queryParams = generateQueryParams(r.variables.oidc_custom_logout_query_params);
+        queryParams = generateQueryParams(r.variables.oidc_logout_query_params);
     }
     r.return(302, logout_endpoint + queryParams);
 }
@@ -297,8 +297,8 @@ function startIdPAuthZ(r) {
     var missingConfig = [];
     var authz_endpoint = generateCustomEndpoint(r,
         r.variables.oidc_authz_endpoint,
-        r.variables.oidc_custom_authz_path_params_enable,
-        r.variables.oidc_custom_authz_path_params
+        r.variables.oidc_authz_path_params_enable,
+        r.variables.oidc_authz_path_params
     );
 
     for (var i in configs) {
@@ -414,15 +414,15 @@ function refershToken(r) {
 // for query or path param is enable.
 function setTokenParams(r) {
     clearTokenParams(r)
-    if (r.variables.oidc_custom_token_query_params_enable == 1) {
+    if (r.variables.oidc_token_query_params_enable == 1) {
         r.variables.token_query_params = generateQueryParams(
-            r.variables.oidc_custom_token_query_params
+            r.variables.oidc_token_query_params
         );
     }
     r.variables.oidc_custom_token_endpoint = generateCustomEndpoint(r,
         r.variables.oidc_token_endpoint,
-        r.variables.oidc_custom_token_path_params_enable,
-        r.variables.oidc_custom_token_path_params
+        r.variables.oidc_token_path_params_enable,
+        r.variables.oidc_token_path_params
     );
 }
 
@@ -560,8 +560,8 @@ function getAuthZArgs(r) {
         authZArgs += '&state=0';
     }
 
-    if (r.variables.oidc_custom_authz_query_params_enable == 1) {
-        return generateQueryParams(r.variables.oidc_custom_authz_query_params);
+    if (r.variables.oidc_authz_query_params_enable == 1) {
+        return generateQueryParams(r.variables.oidc_authz_query_params);
     }
     return authZArgs;
 }
