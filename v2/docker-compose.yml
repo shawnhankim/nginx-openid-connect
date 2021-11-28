@@ -1,15 +1,12 @@
 version: '3.4'
 
-networks: 
-  default:
-    driver: nginx-net-driver
-
 services:
   nginx-plus-ubuntu18.04:
     build:
       context: ./
       dockerfile: ./docker/nginxplus-ubuntu18.04/Dockerfile
     image: nginxplus-oidc-ubuntu18.04
+    container_name: nginx-plus-ubuntu18.04
     ports:
       - 80:80
       - 443:443
@@ -21,6 +18,8 @@ services:
       - type: bind
         source: $NGINX_HTML_PATH
         target: /usr/share/nginx/html/
+    depends_on:
+      - keycloak
     # networks:
     #   - nginx-net
   
@@ -28,6 +27,7 @@ services:
       image: postgres
       volumes:
         - postgres_data:/var/lib/postgresql/data
+      container_name: postgres
       environment:
         POSTGRES_DB:        keycloak
         POSTGRES_USER:      keycloak
@@ -37,6 +37,7 @@ services:
   
   keycloak:
       image: quay.io/keycloak/keycloak:latest
+      container_name: keycloak
       environment:
         DB_VENDOR:          POSTGRES
         DB_ADDR:            postgres
@@ -46,16 +47,28 @@ services:
         DB_PASSWORD:        password
         KEYCLOAK_USER:      admin
         KEYCLOAK_PASSWORD:  Pa55w0rd
+        PROXY_ADDRESS_FORWARDING: true
         # Uncomment the line below if you want to specify JDBC parameters. The parameter below is just an example, and it shouldn't be used in production without knowledge. It is highly recommended that you read the PostgreSQL JDBC driver documentation in order to use it.
         #JDBC_PARAMS: "ssl=true"
       ports:
         - 8080:8080
       depends_on:
         - postgres
-      # links:
-        - nginx-plus-ubuntu18.04
-        # networks:
+      # networks:
       #   - nginx-net
+      extra_hosts:
+        - "mynginxoidc.keycloak:127.0.0.1"
+
 volumes:
   postgres_data:
       driver: local
+
+# networks:
+#   nginx-net:
+#     external:
+#       name:   localhost
+
+networks: 
+  default:
+    driver: nginx-net-driver
+
