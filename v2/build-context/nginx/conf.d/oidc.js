@@ -89,11 +89,11 @@ function codeExchange(r) {
 }
 
 // Call backend proxy that contains headers (ID token, access token, both, or none)
-// based on the configuration of return_token_to_backend.
-// The 'return_token_to_backend' can be also configured by APIM.
+// based on the configuration of forward_token_to_backend.
+// The 'forward_token_to_backend' can be also configured by APIM.
 //
 function passProxyServer(r) {
-    switch(r.variables.return_token_to_backend) {
+    switch(r.variables.forward_token_to_backend) {
         case 'id_token':
             passProxyWithIdToken(r);
             break;
@@ -419,7 +419,7 @@ function setTokenParams(r) {
             r.variables.oidc_token_query_params
         );
     }
-    r.variables.oidc_custom_token_endpoint = generateCustomEndpoint(r,
+    r.variables.oidc_token_endpoint = generateCustomEndpoint(r,
         r.variables.oidc_token_endpoint,
         r.variables.oidc_token_path_params_enable,
         r.variables.oidc_token_path_params
