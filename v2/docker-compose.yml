@@ -6,8 +6,8 @@ services:
       dockerfile: ./docker/nginxplus-ubuntu18.04/Dockerfile
     image: nginxplus-oidc-ubuntu18.04
     ports:
-      - '80:80'
-      - '8010:8010'
+      - 80:80
+      - 8010:8010
     volumes:
       - type: bind
         source: $NGINX_CONF_PATH

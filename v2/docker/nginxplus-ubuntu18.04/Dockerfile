@@ -201,6 +201,6 @@ COPY  build-context/nginx/            /etc/nginx/
 COPY  build-context/ssl/my-sample.*   /etc/controller-agent/configurator/auxfiles/
 
 # EXPOSE ports, HTTP 80, HTTPS 443 and, Nginx status page 8010
-EXPOSE 80 443 8010
+EXPOSE 80 8010
 STOPSIGNAL SIGTERM
 CMD ["nginx", "-g", "daemon off;"]

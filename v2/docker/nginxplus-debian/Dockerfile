@@ -87,7 +87,6 @@ COPY  build-context/nginx/            /etc/nginx/
 COPY  build-context/ssl/my-sample.*   /etc/controller-agent/configurator/auxfiles/
 
 EXPOSE 80
-EXPOSE 443
 EXPOSE 8010
 
 STOPSIGNAL SIGTERM
