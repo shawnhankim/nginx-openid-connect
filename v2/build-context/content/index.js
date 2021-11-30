@@ -1,5 +1,5 @@
 /**
- * JavaScript functions for providing OpenID Connect with NGINX Plus
+ * JavaScript functions for testing OpenID Connect with NGINX Plus
  * 
  * Copyright (C) 2021 Nginx, Inc.
  */

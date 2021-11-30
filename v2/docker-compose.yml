@@ -7,7 +7,6 @@ services:
     image: nginxplus-oidc-ubuntu18.04
     ports:
       - '80:80'
-      - '443:443'
       - '8010:8010'
     volumes:
       - type: bind

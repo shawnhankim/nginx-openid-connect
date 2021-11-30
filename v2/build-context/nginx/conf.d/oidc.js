@@ -5,13 +5,13 @@
  */
 
 // Constants for common error message. These will be cleaned up.
-var ERR_CFG_VARS     = 'OIDC missing configuration variables: ';
-var ERR_AC_TOKEN     = 'OIDC Access Token validation error: ';
-var ERR_ID_TOKEN     = 'OIDC ID Token validation error: ';
-var ERR_IDP_AUTH     = 'OIDC unexpected response from IdP when sending AuthZ code (HTTP ';
-var ERR_TOKEN_RES    = 'OIDC AuthZ code sent but token response is not JSON. ';
-var MSG_OK_REFRESH_TOKEN      = 'OIDC refresh success, updating id_token for ';
-var MSG_REPLACE_REFRESH_TOKEN = 'OIDC replacing previous refresh token (';
+var ERR_CFG_VARS         = 'OIDC missing configuration variables: ';
+var ERR_AC_TOKEN         = 'OIDC Access Token validation error: ';
+var ERR_ID_TOKEN         = 'OIDC ID Token validation error: ';
+var ERR_IDP_AUTH         = 'OIDC unexpected response from IdP when sending AuthZ code (HTTP ';
+var ERR_TOKEN_RES        = 'OIDC AuthZ code sent but token response is not JSON. ';
+var MSG_OK_REFRESH_TOKEN = 'OIDC refresh success, updating id_token for ';
+var MSG_REPLACE_TOKEN    = 'OIDC replacing previous refresh token (';
 
 // Flag to check if there is still valid session cookie. It is used by auth()
 // and validateIdToken().
@@ -25,17 +25,17 @@ var newSession = false;
 export default {
     auth,
     codeExchange,
-    validateIdToken,
-    validateAccessToken,
     logout,
-    redirectPostLogin,
-    redirectPostLogout,
     passProxyServer,
     passProxyWithIdToken,
     passProxyWithAccessToken,
     passProxyWithIdAccessToken,
     passProxyWithoutToken,
-    testExtractToken
+    redirectPostLogin,
+    redirectPostLogout,
+    testExtractToken,
+    validateIdToken,
+    validateAccessToken
 };
 
 // Start OIDC with either intializing new session or refershing token:
@@ -108,7 +108,8 @@ function passProxyServer(r) {
     }
 }
 
-// Call backend proxy that contains ID token in header.
+// Call backend proxy that contains ID token in header:
+//
 // - Validate ID token
 // - Set ID token to the key of x-id-token in the proxy header.
 // - Pass backend proxy server with the ID token in the header.
@@ -116,7 +117,8 @@ function passProxyWithIdToken(r) {
     validateTokenPassProxy(r, '/_proxy_with_id_token')
 }
 
-// Call backend proxy that contains access token in header.
+// Call backend proxy that contains access token in header:
+//
 // - Validate access token.
 // - Set Bearer access token in the proxy header.
 // - Pass backend proxy server with the access token in the header.
@@ -124,7 +126,8 @@ function passProxyWithAccessToken(r) {
     validateTokenPassProxy(r, '/_proxy_with_access_token')
 }
 
-// Call backend proxy that contains ID/access token in header.
+// Call backend proxy that contains ID/access token in header:
+//
 // - Validate access token.
 // - Set Bearer access token in the proxy header.
 // - Set ID token to the key of x-id-token in the proxy header.
@@ -190,7 +193,7 @@ function validateAccessToken(r) {
     return true;
 }
 
-// RP-Initiated or Custom Logout w/ IDP
+// RP-Initiated or Custom Logout w/ IDP:
 // 
 // - An RP requests that the IDP log out the end-user by redirecting the
 //   end-user's User Agent to the IDP's Logout endpoint.
@@ -371,7 +374,7 @@ function handleSuccessfulRefreshResponse(r, res) {
         // Update new refresh token to key/value store if we got a new one.
         r.log(MSG_OK_REFRESH_TOKEN + r.variables.cookie_auth_token);
         if (r.variables.refresh_token != tokenset.refresh_token) {
-            r.log(MSG_REPLACE_REFRESH_TOKEN + r.variables.refresh_token + 
+            r.log(MSG_REPLACE_TOKEN + r.variables.refresh_token + 
                     ') with new value: ' + tokenset.refresh_token);
             r.variables.refresh_token = tokenset.refresh_token;
         }
@@ -581,7 +584,8 @@ function randomStr() {
     return String(Math.random())
 }
 
-// Get query parameter of ID token after sucessful login.
+// Get query parameter of ID token after sucessful login:
+//
 // - For the variable of `returnTokenToClientOnLogin` of the APIM, this config
 //   is only effective for /login endpoint. By default, our implementation MUST
 //   not return any token back to the client app. 
