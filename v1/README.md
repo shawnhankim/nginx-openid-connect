@@ -2,17 +2,6 @@
 
 Reference implementation of NGINX Plus as relying party for OpenID Connect authentication
 
-- [Description](#description)
-  - [Refresh Tokens](#refresh-tokens)
-  - [Logout](#logout)
-  - [Multiple IdPs](#multiple-idp)
-- [Installation](#installation)
-  - [Non-standard directories](#non-standard-directories)
-  - [Running in containers](#running-in-containers)
-  - [Running behind another proxy or load balancer](#running-behind-another-proxy-or-load-balancer)
-- [Configuring your IdP](#configuring-your-idp)
-- [Configuring NGINX Plus](#configuring-nginx-plus)
-
 ## Description
 
 This repository describes how to enable OpenID Connect integration for [NGINX Plus](https://www.nginx.com/products/nginx/). The solution depends on NGINX Plus components ([auth_jwt module](http://nginx.org/en/docs/http/ngx_http_auth_jwt_module.html) and [key-value store](http://nginx.org/en/docs/http/ngx_http_keyval_module.html)) and as such is not suitable for [open source NGINX](http://www.nginx.org/en).

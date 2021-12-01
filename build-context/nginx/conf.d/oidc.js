@@ -791,7 +791,7 @@ function extractToken(r, key, is_bearer, validation_uri, msg) {
             msg += `, "` + key + `": "` + token + `"`;
         }
     } catch (e) {
-        msg += `, "` + key + ` in header": "N/A"`;
+        msg += `, "` + key + `": "N/A"`;
     }
     return [true, msg]
 }
