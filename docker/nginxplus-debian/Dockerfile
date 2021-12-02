@@ -82,9 +82,12 @@ RUN    chmod -R 777 /etc/nginx
 RUN    chmod -R 777 /etc/nginx/conf.d
 RUN    chmod -R 777 /usr/share/nginx/html/css
 
+# COPY (Nginx configuration) directory
 COPY  build-context/content/          /usr/share/nginx/html/
 COPY  build-context/nginx/            /etc/nginx/
 COPY  build-context/ssl/my-sample.*   /etc/controller-agent/configurator/auxfiles/
+COPY  oidc*.conf                      /etc/nginx/conf.d/
+COPY  oidc*.js                        /etc/nginx/conf.d/
 
 EXPOSE 80
 EXPOSE 8010
