@@ -12,6 +12,13 @@ Reference implementation of NGINX Plus as relying party for OpenID Connect authe
   - [Running behind another proxy or load balancer](#running-behind-another-proxy-or-load-balancer)
 - [Configuring your IdP](#configuring-your-idp)
 - [Configuring NGINX Plus](#configuring-nginx-plus)
+  - [Configuring the Key-Value Store](#configuring-the-key-value-store)
+- [Session Management](#session-management)
+- [Real time monitoring](#real-time-monitoring)
+- [Troubleshooting](#troubleshooting)
+- [Support](#support)
+- [Changelog](#changelog)
+
 
 ## Description
 
@@ -92,6 +99,13 @@ $ cd nginx-openid-connect
 $ docker run -d -p 8010:8010 -v $PWD:/etc/nginx/conf.d nginx-plus nginx -g 'daemon off; load_module modules/ngx_http_js_module.so;'
 ```
 
+### Running locally in containers
+This implementation supports that you could locally test in a container. You could find the details what to set up [here](./docs) before running `docker-compose up`.
+```shell
+$ cd nginx-openid-connect
+$ docker-compose up
+```
+
 ### Running behind another proxy or load balancer
 When NGINX Plus is deployed behind another proxy, the original protocol and port number are not available. NGINX Plus needs this information to construct the URIs it passes to the IdP and for redirects. By default NGINX Plus looks for the X-Forwarded-Proto and X-Forwarded-Port request headers to construct these URIs.
 
@@ -107,6 +121,9 @@ When NGINX Plus is deployed behind another proxy, the original protocol and port
     * Obtain the URL for `jwks_uri` or download the JWK file to your NGINX Plus instance
     * Obtain the URL for the **authorization endpoint**
     * Obtain the URL for the **token endpoint**
+    * Obtain the URL for the **user info endpoint**
+    * Obtain the URL for the **end session endpoint for logout**
+    * Obtain the scopes for setting **$oidc_scopes** 
 
 ## Configuring NGINX Plus
 
@@ -114,41 +131,48 @@ Configuration can typically be completed automatically by using the `configure.s
 
 Manual configuration involves reviewing the following files so that they match your IdP(s) configuration.
 
-  * **openid_connect_configuration.conf** - this contains the primary configuration for one or more IdPs in `map{}` blocks
-    * Modify all of the `map…$oidc_` blocks to match your IdP configuration
-    * Modify the URI defined in `map…$oidc_logout_redirect` to specify an unprotected resource to be displayed after requesting the `/logout` location
-    * Set a unique value for `$oidc_hmac_key` to ensure nonce values are unpredictable
+  * **oidc_idp.conf** - this contains the primary configuration for one or more IdPs in `map{}` blocks
+    * Modify all of the `map…$oidc_` blocks to match your IdP configuration.
+    * Modify the URI defined in `map…$oidc_logout_redirect` to specify an unprotected resource to be displayed after requesting the `/logout` location.
+    * Set a unique value for `$oidc_hmac_key` to ensure nonce values are unpredictable.
     * If NGINX Plus is deployed behind another proxy or load balancer, modify the `map…$redirect_base` and `map…$proto` blocks to define how to obtain the original protocol and port number.
 
-  * **frontend.conf** - this is the reverse proxy configuration
-    * Modify the upstream group to match your backend site or app
-    * Configure the preferred listen port and [enable SSL/TLS configuration](https://docs.nginx.com/nginx/admin-guide/security-controls/terminating-ssl-http/)
-    * Modify the severity level of the `error_log` directive to suit the deployment environment
-    * Comment/uncomment the `auth_jwt_key_file` or `auth_jwt_key_request` directives based on whether `$oidc_jwt_keyfile` is a file or URI, respectively
+  * **oidc_frontend_backend.conf** - this is the reverse proxy configuration
+    * Modify the upstream group to match your frontend site or backend app.
+    * Configure the preferred listen port and [enable SSL/TLS configuration](https://docs.nginx.com/nginx/admin-guide/security-controls/terminating-ssl-http/).
+    * Modify the severity level of the `error_log` directive to suit the deployment environment.
+    * Comment/uncomment the `x-id-token` in the proxy header for the API request based on your needs. The default is to only set `Bearer $access_token` in the header.
 
-  * **openid_connect.server_conf** - this is the NGINX configuration for handling the various stages of OpenID Connect authorization code flow
+  * **oidc_nginx_http.conf** - this is the NGINX configuration in http block for handling the various stages of OpenID Connect authorization code flow
+    * No changes are usually required here
+    * Modify `$post_logout_return_uri` if you want to redirect to a custom logout page rather than the default page after successful logout from the IdP.
+    * Modify `$return_token_to_client_on_login` if you want to return `id_token` to the frontend app with a query parameter after successful login from the IdP. Otherwise the default value is empty.
+
+  * **oidc_nginx_server.conf** - this is the NGINX configuration in each server block for handling the various stages of OpenID Connect authorization code flow
     * No changes are usually required here
     * Modify the `resolver` directive to match a DNS server that is capable of resolving the IdP defined in `$oidc_token_endpoint`
     * If using [`auth_jwt_key_request`](http://nginx.org/en/docs/http/ngx_http_auth_jwt_module.html#auth_jwt_key_request) to automatically fetch the JWK file from the IdP then modify the validity period and other caching options to suit your IdP
+    * The `/login` endpoint: Comment/uncomment the `auth_jwt_key_file` or `auth_jwt_key_request` directives based on whether `$oidc_jwt_keyfile` is a file or URI, respectively
 
-  * **openid_connect.js** - this is the JavaScript code for performing the authorization code exchange and nonce hashing
+  * **oidc.js** - this is the JavaScript code for performing the authorization code exchange and nonce hashing
     * No changes are required unless modifying the code exchange or validation process
 
 ### Configuring the Key-Value Store
 
-The key-value store is used to maintain persistent storage for ID tokens and refresh tokens. The default configuration should be reviewed so that it suits the environment. This is part of the advanced configuration in **openid_connect_configuration.conf**.
+The key-value store is used to maintain persistent storage for ID tokens, access tokens, and refresh tokens. The default configuration should be reviewed so that it suits the environment. This is part of the advanced configuration in **oidc_nginx_http.conf**.
 
 ```nginx
-keyval_zone zone=oidc_id_tokens:1M state=conf.d/oidc_id_tokens.json timeout=1h;
-keyval_zone zone=refresh_tokens:1M state=conf.d/refresh_tokens.json timeout=8h;
-keyval_zone zone=oidc_pkce:128K timeout=90s;
+keyval_zone zone=oidc_id_tokens:1M     state=conf.d/oidc_id_tokens.json     timeout=1h;
+keyval_zone zone=oidc_access_tokens:1M state=conf.d/oidc_access_tokens.json timeout=1h;
+keyval_zone zone=refresh_tokens:1M     state=conf.d/refresh_tokens.json     timeout=8h;
+keyval_zone zone=oidc_pkce:128K                                             timeout=90s;
 ```
 
 Each of the `keyval_zone` parameters are described below.
 
   * **zone** - Specifies the name of the key-value store and how much memory to allocate for it. Each session will typically occupy 1-2KB, depending on the size of the tokens, so scale this value to exceed the number of unique users that may authenticate.
 
-  * **state** (optional) - Specifies where all of the ID Tokens in the key-value store are saved, so that sessions will persist across restart or reboot of the NGINX host. The NGINX Plus user account, typically **nginx**, must have write permission to the directory where the state file is stored. Consider creating a dedicated directory for this purpose.
+  * **state** (optional) - Specifies where all of the Tokens in the key-value store are saved, so that sessions will persist across restart or reboot of the NGINX host. The NGINX Plus user account, typically **nginx**, must have write permission to the directory where the state file is stored. Consider creating a dedicated directory for this purpose.
 
   * **timeout** - Expired tokens are removed from the key-value store after the `timeout` value. This should be set to value slightly longer than the JWT validity period. JWT validation occurs on each request, and will fail when the expiry date (`exp` claim) has elapsed. If JWTs are issued without an `exp` claim then set `timeout` to the desired session duration. If JWTs are issued with a range of validity periods then set `timeout` to exceed the longest period.
 
@@ -156,18 +180,21 @@ Each of the `keyval_zone` parameters are described below.
 
 ## Session Management
 
-The [NGINX Plus API](http://nginx.org/en/docs/http/ngx_http_api_module.html) is enabled in **openid_connect.server_conf** so that sessions can be monitored. The API can also be used to manage the current set of active sessions.
+The [NGINX Plus API](http://nginx.org/en/docs/http/ngx_http_api_module.html) is enabled in **oidc_nginx_server.conf** so that sessions can be monitored. The API can also be used to manage the current set of active sessions.
 
 To query the current sessions in the key-value store:
 
 ```shell
 $ curl localhost:8010/api/6/http/keyvals/oidc_id_tokens
+$ curl localhost:8010/api/6/http/keyvals/oidc_access_tokens
+$ curl localhost:8010/api/6/http/keyvals/oidc_refresh_tokens
 ```
 
 To delete a single session:
 
 ```shell
 $ curl -iX PATCH -d '{"<session ID>":null}' localhost:8010/api/6/http/keyvals/oidc_id_tokens
+$ curl -iX PATCH -d '{"<session ID>":null}' localhost:8010/api/6/http/keyvals/oidc_access_tokens
 $ curl -iX PATCH -d '{"<session ID>":null}' localhost:8010/api/6/http/keyvals/refresh_tokens
 ```
 
@@ -175,12 +202,13 @@ To delete all sessions:
 
 ```shell
 $ curl -iX DELETE localhost:8010/api/6/http/keyvals/oidc_id_tokens
+$ curl -iX DELETE localhost:8010/api/6/http/keyvals/oidc_access_tokens
 $ curl -iX DELETE localhost:8010/api/6/http/keyvals/refresh_tokens
 ```
 
 ## Real time monitoring
 
-The **openid_connect.server_conf** file defines several [`status_zone`](http://nginx.org/en/docs/http/ngx_http_api_module.html#status_zone) directives to collect metrics about OpenID Connect activity and errors. Separate metrics counters are recorded for:
+The **oidc_nginx_server.conf** file defines several [`status_zone`](http://nginx.org/en/docs/http/ngx_http_api_module.html#status_zone) directives to collect metrics about OpenID Connect activity and errors. Separate metrics counters are recorded for:
 
  * **OIDC start** - New sessions are counted here. See step 2 in Figure 2, above. Success is recorded as a 3xx response.
 
@@ -227,7 +255,7 @@ proxy_set_header Accept-Encoding "gzip";
   * **Failed SSL/TLS handshake to IdP**
     * Indicated by error log messages including `peer closed connection in SSL handshake (104: Connection reset by peer) while SSL handshaking to upstream`.
     * This can occur when the IdP requires Server Name Indication (SNI) information as part of the TLS handshake. Additional configuration is required to satisfy this requirement.
-    * Edit **openid_connect.server_conf** and for each of the `/_jwks_uri`, `/_token`, and `/_refresh` locations, add the following configuration snippet:
+    * Edit **oidc_nginx_server.conf** and for each of the `/_jwks_uri`, `/_token`, `/_refresh` and `/userinfo` locations, add the following configuration snippet:
 ```nginx
 proxy_set_header Host <IdP hostname>;
 proxy_ssl_name        <IdP hostname>;
@@ -246,3 +274,4 @@ This reference implementation for OpenID Connect is supported for NGINX Plus sub
   * **R19** Minor bug fixes
   * **R22** Separate configuration file, supports multiple IdPs. Configurable scopes and cookie flags. JavaScript is imported as an indepedent module with `js_import`. Container-friendly logging. Additional metrics for OIDC activity.
   * **R23** PKCE support. Added support for deployments behind another proxy or load balancer.
+  * **R25** Added `access_token` to proxy to the backend. Added `/login`, `/userinfo`, and `/logout` endpoint. Token configuration to forward and return. Configurable query and path param to the IDP endpoint. Bundled test page.
