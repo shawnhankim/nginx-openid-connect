@@ -181,8 +181,8 @@ RUN set -x \
 
 # Optional: COPY over any of your SSL certs for HTTPS servers
 # e.g.
-#COPY etc/ssl/www.example.com.crt /etc/ssl/www.example.com.crt
-#COPY etc/ssl/www.example.com.key /etc/ssl/www.example.com.key
+#COPY etc/ssl/my-nginx.example.com.crt /etc/ssl/my-nginx.example.com.crt
+#COPY etc/ssl/my-nginx.example.com.key /etc/ssl/my-nginx.example.com.key
 
 RUN    mkdir -p /etc/nginx/conf.d                           \
     && mkdir -p /usr/share/nginx/html/css                   \
