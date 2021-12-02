@@ -17,7 +17,7 @@ ENV PKG_RELEASE   1~bionic
 # Download certificate and key from the customer portal https://account.f5.com/myf5
 # and copy to the build context and set correct permissions
 RUN  mkdir -p /etc/ssl/nginx
-COPY build-context/ssl/nginx-repo.* /etc/ssl/nginx/
+COPY docker/build-context/ssl/nginx-repo.* /etc/ssl/nginx/
 
 # COPY etc/ssl/nginx/nginx-repo.crt /etc/ssl/nginx/nginx-repo.crt
 # COPY etc/ssl/nginx/nginx-repo.key /etc/ssl/nginx/nginx-repo.key
@@ -196,9 +196,8 @@ RUN    chmod -R 777 /etc/nginx/conf.d
 RUN    chmod -R 777 /usr/share/nginx/html/css
 
 # COPY (Nginx configuration) directory
-COPY  build-context/content/          /usr/share/nginx/html/
-COPY  build-context/nginx/            /etc/nginx/
-COPY  build-context/ssl/my-sample.*   /etc/controller-agent/configurator/auxfiles/
+COPY  docker/build-context/content/   /usr/share/nginx/html/
+COPY  docker/build-context/nginx/     /etc/nginx/
 COPY  oidc*.conf                      /etc/nginx/conf.d/
 COPY  oidc*.js                        /etc/nginx/conf.d/
 
