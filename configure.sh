@@ -177,25 +177,25 @@ else
 fi
 
 # Loop through each configuration variable
-echo "$COMMAND: NOTICE: Configuring $CONFDIR/openid_connect_configuration.conf"
+echo "$COMMAND: NOTICE: Configuring $CONFDIR/oidc_idp.conf"
 for OIDC_VAR in \$oidc_authz_endpoint \$oidc_token_endpoint \$oidc_jwt_keyfile \$oidc_hmac_key $CLIENT_ID_VAR $CLIENT_SECRET_VAR $PKCE_ENABLE_VAR; do
 	# Pull the configuration value from the intermediate file
 	VALUE=`grep "^$OIDC_VAR " /tmp/${COMMAND}_$$_conf | cut -f2 -d' '`
 	echo -n "$COMMAND: NOTICE:  - $OIDC_VAR ..."
 
 	# Find where this variable is configured
-	LINE=`grep -nA10 $OIDC_VAR $CONFDIR/openid_connect_configuration.conf | grep $HOSTNAME | head -1 | cut -f1 -d-`
+	LINE=`grep -nA10 $OIDC_VAR $CONFDIR/oidc_idp.conf | grep $HOSTNAME | head -1 | cut -f1 -d-`
 	if [ "$LINE" == "" ]; then
 		# Add new value
-		LINE=`grep -n $OIDC_VAR $CONFDIR/openid_connect_configuration.conf | head -1 | cut -f1 -d:`
+		LINE=`grep -n $OIDC_VAR $CONFDIR/oidc_idp.conf | head -1 | cut -f1 -d:`
 		sed -i$SED_BAK "${LINE}a\\
 \    $HOSTNAME $VALUE;\\
-" $CONFDIR/openid_connect_configuration.conf
+" $CONFDIR/oidc_idp.conf
 	else
 		# Replace existing value
 		sed -i$SED_BAK "${LINE}c\\
 \    $HOSTNAME $VALUE;\\
-" $CONFDIR/openid_connect_configuration.conf
+" $CONFDIR/oidc_idp.conf
 	fi
 
 	if [ $? -ne 0 ]; then
@@ -204,7 +204,7 @@ for OIDC_VAR in \$oidc_authz_endpoint \$oidc_token_endpoint \$oidc_jwt_keyfile \
 		exit 1
 	fi
 
-	diff $CONFDIR/openid_connect_configuration.conf $CONFDIR/openid_connect_configuration.conf$SED_BAK > /dev/null
+	diff $CONFDIR/oidc_idp.conf $CONFDIR/oidc_idp.conf$SED_BAK > /dev/null
 	if [ $? -eq 0 ]; then
 		echo " no change"
 	else
