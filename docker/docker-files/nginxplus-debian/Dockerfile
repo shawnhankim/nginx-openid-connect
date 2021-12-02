@@ -13,7 +13,7 @@ ENV PKG_RELEASE     1~buster
 
 # Download certificate and key from the customer portal (https://cs.nginx.com)
 # and copy to the build context
-COPY build-context/ssl/nginx-repo.* /etc/ssl/nginx/
+COPY docker/build-context/ssl/nginx-repo.* /etc/ssl/nginx/
 
 RUN set -x \
 # Create nginx user/group first, to be consistent throughout Docker variants
@@ -83,9 +83,8 @@ RUN    chmod -R 777 /etc/nginx/conf.d
 RUN    chmod -R 777 /usr/share/nginx/html/css
 
 # COPY (Nginx configuration) directory
-COPY  build-context/content/          /usr/share/nginx/html/
-COPY  build-context/nginx/            /etc/nginx/
-COPY  build-context/ssl/my-sample.*   /etc/controller-agent/configurator/auxfiles/
+COPY  docker/build-context/content/   /usr/share/nginx/html/
+COPY  docker/build-context/nginx/     /etc/nginx/
 COPY  oidc*.conf                      /etc/nginx/conf.d/
 COPY  oidc*.js                        /etc/nginx/conf.d/
 
