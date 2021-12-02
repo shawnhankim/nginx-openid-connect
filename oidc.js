@@ -26,11 +26,6 @@ export default {
     auth,
     codeExchange,
     logout,
-    passProxyServer,
-    passProxyWithIdToken,
-    passProxyWithAccessToken,
-    passProxyWithIdAccessToken,
-    passProxyWithoutToken,
     redirectPostLogin,
     redirectPostLogout,
     testExtractToken,
@@ -86,59 +81,6 @@ function codeExchange(r) {
             handleSuccessfulTokenResponse(r, res)
         }
     );
-}
-
-// Call backend proxy that contains headers (ID token, access token, both, or none)
-// based on the configuration of forward_token_to_backend.
-// The 'forward_token_to_backend' can be also configured by APIM.
-//
-function passProxyServer(r) {
-    switch(r.variables.forward_token_to_backend) {
-        case 'id_token':
-            passProxyWithIdToken(r);
-            break;
-        case 'both':
-            passProxyWithIdAccessToken(r);
-            break;
-        case 'access_token':
-            passProxyWithAccessToken(r);
-            break;
-        default: 
-            passProxyWithoutToken(r);
-    }
-}
-
-// Call backend proxy that contains ID token in header:
-//
-// - Validate ID token
-// - Set ID token to the key of x-id-token in the proxy header.
-// - Pass backend proxy server with the ID token in the header.
-function passProxyWithIdToken(r) {
-    validateTokenPassProxy(r, '/_proxy_with_id_token')
-}
-
-// Call backend proxy that contains access token in header:
-//
-// - Validate access token.
-// - Set Bearer access token in the proxy header.
-// - Pass backend proxy server with the access token in the header.
-function passProxyWithAccessToken(r) {
-    validateTokenPassProxy(r, '/_proxy_with_access_token')
-}
-
-// Call backend proxy that contains ID/access token in header:
-//
-// - Validate access token.
-// - Set Bearer access token in the proxy header.
-// - Set ID token to the key of x-id-token in the proxy header.
-// - Pass backend proxy server with the access token in the header.
-function passProxyWithIdAccessToken(r) {
-    validateTokenPassProxy(r, '/_proxy_with_id_access_token')
-}
-
-// Call backend proxy without token in header.
-function passProxyWithoutToken(r) {
-    validateTokenPassProxy(r, '/_proxy_without_token')
 }
 
 // Validate ID token which is received from IdP (fresh or refresh token):
@@ -754,18 +696,6 @@ function isValidTokenSet(r, tokenset) {
         return isErr;
     }
     return !isErr;
-}
-
-// Validate ID/access token and pass backend proxy.
-function validateTokenPassProxy(r, uri) {
-    r.subrequest(uri, function(res) {
-        if (res.status != 200) {
-            r.error('validate token and pass backend proxy: ' + res.status);
-            r.return(res.status)
-            return
-        }
-        r.return(res.status, res.responseBody)
-    });
 }
 
 // Extract ID/access token from the request header.
