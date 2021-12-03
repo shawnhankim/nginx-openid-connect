@@ -70,6 +70,7 @@ Modify frontend/backend and OIDC configuration with NGINX Plus via [this link](h
 
 - The guideline is described in [this link](https://github.com/shawnhankim/nginx-openid-connect#configuring-nginx-plus).
 
+
 ## Set Up and Run Docker Compose
 
 Set up your local environment for testing OIDC workflows based on NGINX Plus docker container as follows.
