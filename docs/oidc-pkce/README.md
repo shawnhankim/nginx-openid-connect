@@ -92,7 +92,7 @@ Let's set up PKCE into your application with Okta.
 
 > **Server Setup**:
 
-  You could simply set up your server by adding port, server name, certificates (optional, but, recommended in production), and by including sample configurations as the following configuration in the [/etc/nginx/conf.d/sample_frontend_api_server.conf](../../build-context/nginx/conf.d/sample_frontend_api_server.conf):
+  You could simply set up your server by adding port, server name, certificates (optional, but, recommended in production), and by including sample configurations as the following configuration in the [/etc/nginx/conf.d/oidc_frontend_backend.conf](../../oidc_frontend_backend.conf):
 
   ```nginx
   server {
@@ -107,5 +107,4 @@ Let's set up PKCE into your application with Okta.
 ## Let's Access Web with PKCE
 You have set up PKCE with multiple IDPs and NGINX Plus. Now you are ready to start checking if you could access your page with the PKCE setup. 
 
-Given the above setup, you could just type your host name in your web browser and test it if it works. The process is same as [this link](../01-access-web-and-tokens/README.md#access-web-page-with-nginx-oidc).
-
+Given the above setup, you could just type your host name in your web browser and test it if it works. 

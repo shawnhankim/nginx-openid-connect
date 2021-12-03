@@ -1,5 +1,0 @@
-*.crt
-*.key
-*.json
-oidc_credentials.conf
-.DS_Store

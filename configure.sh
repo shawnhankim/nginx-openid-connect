@@ -160,16 +160,16 @@ else
 	echo "s/#\(auth_jwt_key_request\)/\1/" >> /tmp/${COMMAND}_$$_sed # Uncomment
 fi
 
-# Perform the substitutions on frontend.conf for auth_jwt_key_
+# Perform the substitutions on oidc_frontend_backend.conf for auth_jwt_key_
 #
-echo -n "$COMMAND: NOTICE: Configuring $CONFDIR/frontend.conf ..."
-sed -i$SED_BAK -f /tmp/${COMMAND}_$$_sed $CONFDIR/frontend.conf
+echo -n "$COMMAND: NOTICE: Configuring $CONFDIR/oidc_frontend_backend.conf ..."
+sed -i$SED_BAK -f /tmp/${COMMAND}_$$_sed $CONFDIR/oidc_frontend_backend.conf
 if [ $? -ne 0 ]; then
 	echo " FAILED"
-        echo "$COMMAND: ERROR: $CONFDIR/frontend.conf failed, check intermediate files `ls -1 /tmp/${COMMAND}_$$_* | tr '\n' ' '`"
+        echo "$COMMAND: ERROR: $CONFDIR/oidc_frontend_backend.conf failed, check intermediate files `ls -1 /tmp/${COMMAND}_$$_* | tr '\n' ' '`"
 	exit 1
 fi
-diff $CONFDIR/frontend.conf $CONFDIR/frontend.conf$SED_BAK > /dev/null
+diff $CONFDIR/oidc_frontend_backend.conf $CONFDIR/oidc_frontend_backend.conf$SED_BAK > /dev/null
 if [ $? -eq 0 ]; then
 	echo " no change"
 else

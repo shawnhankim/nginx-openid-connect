@@ -9,6 +9,7 @@ Reference implementation of NGINX Plus as relying party for OpenID Connect authe
 - [Installation](#installation)
   - [Non-standard directories](#non-standard-directories)
   - [Running in containers](#running-in-containers)
+  - [Running locally in containers](#running-locally-in-containers)
   - [Running behind another proxy or load balancer](#running-behind-another-proxy-or-load-balancer)
 - [Configuring your IdP](#configuring-your-idp)
 - [Configuring NGINX Plus](#configuring-nginx-plus)
@@ -100,7 +101,7 @@ $ docker run -d -p 8010:8010 -v $PWD:/etc/nginx/conf.d nginx-plus nginx -g 'daem
 ```
 
 ### Running locally in containers
-This implementation supports that you could locally test in a container. You could find the details what to set up [here](./docs) before running `docker-compose up`.
+This implementation supports that you could locally test in a container. You could find the details what to set up [here](./docs/docker-test) before running `docker-compose up`.
 ```shell
 $ cd nginx-openid-connect
 $ docker-compose up
@@ -159,7 +160,7 @@ Manual configuration involves reviewing the following files so that they match y
 
 ### Configuring the Key-Value Store
 
-The key-value store is used to maintain persistent storage for ID tokens, access tokens, and refresh tokens. The default configuration should be reviewed so that it suits the environment. This is part of the advanced configuration in **oidc_nginx_http.conf**.
+The key-value store is used to maintain persistent storage for ID tokens, access tokens, and refresh tokens. The default configuration should be reviewed so that it suits the environment. This is part of the advanced configuration in **oidc_nginx_http.conf**. Modify the directory of key-value store in `state` field per your system requirement.
 
 ```nginx
 keyval_zone zone=oidc_id_tokens:1M     state=conf.d/oidc_id_tokens.json     timeout=1h;
@@ -274,4 +275,4 @@ This reference implementation for OpenID Connect is supported for NGINX Plus sub
   * **R19** Minor bug fixes
   * **R22** Separate configuration file, supports multiple IdPs. Configurable scopes and cookie flags. JavaScript is imported as an indepedent module with `js_import`. Container-friendly logging. Additional metrics for OIDC activity.
   * **R23** PKCE support. Added support for deployments behind another proxy or load balancer.
-  * **R25** Added `access_token` to proxy to the backend. Added `/login`, `/userinfo`, and `/logout` endpoint. Token configuration to forward and return. Configurable query and path param to the IDP endpoint. Bundled test page.
+  * **R25** Added `access_token` to proxy to the backend. Added endpoints of `/login` and `/userinfo`. Enhanced `/logout` endpoint with post logout uri. Token configuration to forward and return. Configurable query and path param to the IDP endpoint. Bundled test page.
