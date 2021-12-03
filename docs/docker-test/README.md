@@ -1,5 +1,6 @@
 # Running NGINX Plus OIDC In Docker
-This is to provide how to set up and test NGINX Plus Open ID Connect in docker based on the example of docker files, frontend page and backend configuration for your testing.
+This is to provide how to set up and test NGINX Plus OIDC in docker based on the examples of docker files, frontend and backend.
+
 
 ## Summary of Steps
 | Category            | Details                                                                             |
@@ -8,22 +9,24 @@ This is to provide how to set up and test NGINX Plus Open ID Connect in docker b
 | 2. Certs & License  | [Prepare Certs and NGINX Plus License](#prepare-certs-and-nginx-plus-license)       |
 | 3. NGINX Plus Setup | [Configure Frontend Site and Backend App](#configure-frontend-site-and-backend-app) |
 |                     | [Modify OIDC Configuration](#modify-oidc-configuration)                             |
-| 4. Docker Compose   | [Set Up and Run Docker Compose](#install-and-run-docker-compose)                   |
+| 4. Docker Compose   | [Set Up and Run Docker Compose](#install-and-run-docker-compose)                    |
 | 5. NGINX OIDC Test  | [Test NGINX Plus OIDC RP Implementation](#test-nginx-plus-oidc-rp-implementation)   |
+
 
 ## Configure your IdP
 Find the following guidelines how to configure your IdP.
-- [GitHub: NGINX Plus Open ID Connect](https://github.com/nginxinc/nginx-openid-connect/#configuring-your-idp)
+- [GitHub: NGINX Plus OIDC](https://github.com/nginxinc/nginx-openid-connect/#configuring-your-idp)
   > Note that this docker-compose based test doesn't use `configure.sh`.
 - [NGINX Doc: Enabling Single Sign-on for Proxied Applications w/ NGINX Plus](https://docs.nginx.com/nginx/deployment-guides/single-sign-on/)
 
+
 ## Prepare Certs and NGINX Plus License
-Create your certificates for SSL and download NGINX Plus license files.
-  > Note that you can test OIDC without certs using the configuration of this repository for your convenience. But we suggest that you create them in your production.
+Create your certificates for SSL, and download NGINX Plus license files.
+  > Note that you can test this NGINX Plus OIDC without certs. But we suggest that you configure them in your production.
 
 **Certificates**:
 
-Create your certificates and copy the files to the following path if you want to enable SSL.
+Create your certificates, and copy the files into the following path if you enable SSL.
 - [**Path**](../../docker/build-context/ssl): `docker/build-context/ssl`
 - **Files**: `my-sample.crt`, `my-sample.key`
 - Uncomment the following lines in [`Dockerfile`](../../docker/docker-files/nginxplus-ubuntu18.04/Dockerfile) 
@@ -34,14 +37,14 @@ Create your certificates and copy the files to the following path if you want to
 
 **NGINX Plus License:**
 
-- Download your version of the `nginx-repo.crt` and `nginx-repo.key` files via the [F5/NGINX customer portal](https://cs.nginx.com/?_ga=2.268586425.912746048.1620625839-85838359.1596947109).
+Download the NGINX Plus license files via the [F5/NGINX customer portal](https://cs.nginx.com/?_ga=2.268586425.912746048.1620625839-85838359.1596947109), and copy the files into the following path.
 - [**Path**](../../docker/build-context/ssl): `docker/build-context/ssl`
-- The license files would be copied into your Docker container when you run the Docker.
+- **Files**: `nginx-repo.crt`, `nginx-repo.key`
 
 
 ## NGINX Plus Setup
 
-Find what to modify frontend/backend and OIDC configuration with NGINX Plus via [this link](https://github.com/shawnhankim/nginx-openid-connect#configuring-nginx-plus) in detail.
+Modify frontend/backend and OIDC configuration with NGINX Plus via [this link](https://github.com/shawnhankim/nginx-openid-connect#configuring-nginx-plus) in detail.
 
 
 ### Configure Frontend Site and Backend App
@@ -60,12 +63,13 @@ Find what to modify frontend/backend and OIDC configuration with NGINX Plus via 
 
   | File                                                      | Remark                                             |
   |-----------------------------------------------------------|----------------------------------------------------|
-  | [oidc_idp.conf](../../../oidc_idp.conf)                   | IDP Configuration for OIDC                         |
+  | [oidc_idp.conf](../../../oidc_idp.conf)                   | IdP Configuration for OIDC                         |
   | [oidc_nginx_http.conf](../../../oidc_nginx_http.conf)     | NGINX Configuration in http block for OIDC         |
   | [oidc_nginx_server.conf](../../../oidc_nginx_server.conf) | NGINX Configuration in server block for OIDC       |
   | [oidc.js](../../../oidc.js)                               | Performing OIDC workflow. No changes are required. |
 
 - The guideline is described in [this link](https://github.com/shawnhankim/nginx-openid-connect#configuring-nginx-plus).
+
 
 ## Set Up and Run Docker Compose
 
@@ -102,4 +106,4 @@ For your convenience, you could use the following test tool in the main web page
 
 - Access your frontend page (e.g. `http://my-nginx.example.com:8010/`) via your web browser.
 - Sample frontend page as a OIDC test tool
-![](../../img/nginx-oidc-test-tool.png)
+  ![](./img/nginx-oidc-test-tool.png)

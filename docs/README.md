@@ -3,9 +3,10 @@
 This directory provides additional documents to help you set up OIDC configuration and locally test in container(s) step-by-step. You could also find what each configuration variable means in detail.
 
 ## Table of Contents
-- [Running NGINX Plus OIDC In Docker](./docker-test)
 - [IDP Configuration Details](./oidc-idp-config)
 - [NGINX Plus Configuration Details](./oidc-nginx-config)
+- [NGINX Plus PKCE Setup Examples](./oidc-pkce)
+- [Running NGINX Plus OIDC In Docker](./docker-test)
 
 ## References
 - [NGINX OpenID Connect](https://github.com/nginxinc/nginx-openid-connect)

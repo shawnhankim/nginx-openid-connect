@@ -101,7 +101,7 @@ $ docker run -d -p 8010:8010 -v $PWD:/etc/nginx/conf.d nginx-plus nginx -g 'daem
 ```
 
 ### Running locally in containers
-This implementation supports that you could locally test in a container. You could find the details what to set up [here](./docs) before running `docker-compose up`.
+This implementation supports that you could locally test in a container. You could find the details what to set up [here](./docs/docker-test) before running `docker-compose up`.
 ```shell
 $ cd nginx-openid-connect
 $ docker-compose up
