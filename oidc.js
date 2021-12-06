@@ -158,7 +158,7 @@ function logout(r) {
     var queryParams = '';
 
     // OIDC RP-initiated logout.
-    if (r.variables.oidc_rp_initiated_logout_enable == 1) {
+    if (r.variables.oidc_logout_query_params_enable == 0) {
         queryParams = getRPInitiatedLogoutArgs(r, idToken);
 
     // Call the IDP logout endpoint with custom query parameters
