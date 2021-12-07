@@ -144,7 +144,7 @@ function validateAccessToken(r) {
 // - https://openid.net/specs/openid-connect-rpinitiated-1_0.html#RPLogout
 // - https://openid.net/specs/openid-connect-rpinitiated-1_0.html#RedirectionAfterLogout
 function logout(r) {
-    r.log('OIDC logout for ' + r.variables.cookie_auth_token);
+    r.log('OIDC logout for ' + r.variables.cookie_session_id);
     var idToken = r.variables.id_token;
     r.variables.request_id    = '-';
     r.variables.id_token      = '-';
@@ -314,7 +314,7 @@ function handleSuccessfulRefreshResponse(r, res) {
         r.variables.access_token = tokenset.access_token;
 
         // Update new refresh token to key/value store if we got a new one.
-        r.log(MSG_OK_REFRESH_TOKEN + r.variables.cookie_auth_token);
+        r.log(MSG_OK_REFRESH_TOKEN + r.variables.cookie_session_id);
         if (r.variables.refresh_token != tokenset.refresh_token) {
             r.log(MSG_REPLACE_TOKEN + r.variables.refresh_token + 
                     ') with new value: ' + tokenset.refresh_token);
@@ -440,7 +440,7 @@ function handleSuccessfulTokenResponse(r, res) {
         // Set cookie with request ID that is the key of each ID/access token,
         // and continue to process the original request.
         r.log('OIDC success, creating session '    + r.variables.request_id);
-        r.headersOut['Set-Cookie'] = 'auth_token=' + r.variables.request_id + 
+        r.headersOut['Set-Cookie'] = 'session_id=' + r.variables.request_id + 
                                      '; ' + r.variables.oidc_cookie_flags;
         r.return(302, r.variables.redirect_base + r.variables.cookie_auth_redir);
     } catch (e) {
