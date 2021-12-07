@@ -9,7 +9,7 @@ This is to provide how to set up and test NGINX Plus OIDC in docker based on the
 | 2. Certs & License  | [Prepare Certs and NGINX Plus License](#prepare-certs-and-nginx-plus-license)       |
 | 3. NGINX Plus Setup | [Configure Frontend Site and Backend App](#configure-frontend-site-and-backend-app) |
 |                     | [Modify OIDC Configuration](#modify-oidc-configuration)                             |
-| 4. Docker Compose   | [Set Up and Run Docker Compose](#install-and-run-docker-compose)                    |
+| 4. Docker Compose   | [Set Up and Run Docker Compose](#set-up-and-run-docker-compose)                     |
 | 5. NGINX OIDC Test  | [Test NGINX Plus OIDC RP Implementation](#test-nginx-plus-oidc-rp-implementation)   |
 
 
