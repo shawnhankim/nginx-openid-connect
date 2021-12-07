@@ -27,9 +27,9 @@ Create your certificates for SSL, and download NGINX Plus license files.
 **Certificates**:
 
 Create your certificates, and copy the files into the following path if you enable SSL.
-- [**Path**](../../docker/build-context/ssl): `docker/build-context/ssl`
+- [**Path**](./build-context/ssl): `build-context/ssl`
 - **Files**: `my-sample.crt`, `my-sample.key`
-- Uncomment the following lines in [`Dockerfile`](../../docker/docker-files/nginxplus-ubuntu18.04/Dockerfile) 
+- Uncomment the following lines in [`Dockerfile`](./docker-files/nginxplus-ubuntu18.04/Dockerfile) 
   ```bash
   #COPY etc/ssl/my-nginx.example.com.crt /etc/ssl/my-nginx.example.com.crt
   #COPY etc/ssl/my-nginx.example.com.key /etc/ssl/my-nginx.example.com.key
@@ -38,7 +38,7 @@ Create your certificates, and copy the files into the following path if you enab
 **NGINX Plus License:**
 
 Download the NGINX Plus license files via the [F5/NGINX customer portal](https://cs.nginx.com/?_ga=2.268586425.912746048.1620625839-85838359.1596947109), and copy the files into the following path.
-- [**Path**](../../docker/build-context/ssl): `docker/build-context/ssl`
+- [**Path**](./build-context/ssl): `build-context/ssl`
 - **Files**: `nginx-repo.crt`, `nginx-repo.key`
 
 
@@ -49,7 +49,7 @@ Modify frontend/backend and OIDC configuration with NGINX Plus via [this link](h
 
 ### Configure Frontend Site and Backend App
 
-- Configure your frontend site and backend app in [`oidc_frontend_backend.conf`](../../../oidc_frontend_backend.conf). 
+- Configure your frontend site and backend app in [`oidc_frontend_backend.conf`](../oidc_frontend_backend.conf). 
 - The guideline is described in [this link](https://github.com/shawnhankim/nginx-openid-connect#configuring-nginx-plus).
 > Note that you can test the sample of protected frontend site and backend app based on NGINX OIDC without modifying the file in this repository for your convenience.
 - Edit `/etc/hosts` file with the server name in your local machine like:
@@ -61,12 +61,12 @@ Modify frontend/backend and OIDC configuration with NGINX Plus via [this link](h
 
 - Review the following files and manually configure them with mathching your IdP(s) configuration.
 
-  | File                                                      | Remark                                             |
-  |-----------------------------------------------------------|----------------------------------------------------|
-  | [oidc_idp.conf](../../../oidc_idp.conf)                   | IdP Configuration for OIDC                         |
-  | [oidc_nginx_http.conf](../../../oidc_nginx_http.conf)     | NGINX Configuration in http block for OIDC         |
-  | [oidc_nginx_server.conf](../../../oidc_nginx_server.conf) | NGINX Configuration in server block for OIDC       |
-  | [oidc.js](../../../oidc.js)                               | Performing OIDC workflow. No changes are required. |
+  | File                                                | Remark                                             |
+  |-----------------------------------------------------|----------------------------------------------------|
+  | [oidc_idp.conf](../oidc_idp.conf)                   | IdP Configuration for OIDC                         |
+  | [oidc_nginx_http.conf](../oidc_nginx_http.conf)     | NGINX Configuration in http block for OIDC         |
+  | [oidc_nginx_server.conf](../oidc_nginx_server.conf) | NGINX Configuration in server block for OIDC       |
+  | [oidc.js](../oidc.js)                               | Performing OIDC workflow. No changes are required. |
 
 - The guideline is described in [this link](https://github.com/shawnhankim/nginx-openid-connect#configuring-nginx-plus).
 
@@ -91,7 +91,7 @@ Set up your local environment for testing OIDC workflows based on NGINX Plus doc
   This is to locally edit files and reload `nginx -s reload` for your convenient testing in container(s).
   ```bash
   $ NGINX_CONF_PATH=/Users/{user name}/{your github path}/
-  $ NGINX_HTML_PATH=/Users/{user name}/{your github path}/docker/build-context/content
+  $ NGINX_HTML_PATH=/Users/{user name}/{your github path}/build-context/content
   $ docker-compose up -d
   ```
 
