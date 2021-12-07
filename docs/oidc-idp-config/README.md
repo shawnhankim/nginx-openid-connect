@@ -1,5 +1,5 @@
 # IdP Configuration Variables for OpenID Connect
-This directory provides the details of each variable which is related to IdP configuration for the OpenID Connect.
+This directory provides the details of each variable which is related to [IdP configuration for the OpenID Connect](../../oidc_idp.conf).
 
 - [Configuring OpenID Provider Metadata via Well-Known Endpoints](#configuring-openid-provider-metadata-via-well-known-endpoints)
 - [Custom Configuration for Well-Known OIDC Endpoints](#custom-configuration-for-well-known-oidc-endpoints)
@@ -27,22 +27,22 @@ This is for customers to customize the Well-Known OIDC endpoints to pass vendor 
 | Variable                           | Description                                                                 |
 |------------------------------------|-----------------------------------------------------------------------------|
 | `$oidc_authz_path_params_enable`   | `1`: Enable custom path params when `{arbitrary param-name}` is in the `$oidc_authz_endpoint`. <br> `0`: Disable it. |
-| `$oidc_authz_path_params`          | Use for when `$oidc_authz_path_params` is enabled. <br> **Example:** <br><pre>map $host $oidc_authz_endpoint { <br>    default "https://{my-app}.okta.com/oauth2/{version}/authorize"; <br>} <br>map $host $oidc_authz_path_params { <br>    default '{ "my-app": "dev-9590480", "version": "v1" }'; <br>}</pre> |
+| `$oidc_authz_path_params`          | Use for when `$oidc_authz_path_params` is enabled. <br><br> **Example:** <br><pre>map $host $oidc_authz_endpoint { <br>    default "https://{my-app}.okta.com/oauth2/{version}/authorize"; <br>} <br>map $host $oidc_authz_path_params { <br>    default '{ "my-app": "dev-9590480", "version": "v1" }'; <br>}</pre> |
 |||
 | `$oidc_authz_query_params_enable`  | `1`: Enable additional query params when the `$oidc_authz_endpoint` needs them. <br> `0`: Disable it.                      |
-| `$oidc_authz_query_params`         | Use for when `$oidc_authz_query_params_enable` is enabled. <br> **Example:** <br><pre> map $host $oidc_authz_query_params { <br> default '{ <br>     "response_type": "code", <br>     "scope"        : "$oidc_scopes", <br>     "client_id"    : "$oidc_client", <br>     "redirect_uri" : "$redirect_base$redir_location", <br>     "nonce"        : "$nonce_hash", <br>     "state"        : 0 <br> }'; <br> |
+| `$oidc_authz_query_params`         | Use for when `$oidc_authz_query_params_enable` is enabled. <br><br> **Example:** <br><pre> map $host $oidc_authz_query_params { <br> default '{ <br>     "response_type": "code", <br>     "scope"        : "$oidc_scopes", <br>     "client_id"    : "$oidc_client", <br>     "redirect_uri" : "$redirect_base$redir_location", <br>     "nonce"        : "$nonce_hash", <br>     "state"        : 0 <br> }'; <br> |
 |||
 | `$oidc_logout_path_params_enable`  | `1`: Enable custom path params when `{arbitrary param-name}` is in the `$oidc_logout_endpoint`. <br> `0`: Disable it. |
-| `$oidc_logout_path_params`         | Use for when `$oidc_logout_path_params_enable` is enabled. <br> **Example:** <br><pre>map $host $oidc_logout_endpoint { <br>    default "https://{my-app}.okta.com/oauth2/{version}/logout"; <br>} <br>map $host $oidc_authz_path_params { <br>    default '{ "my-app": "dev-9590480", "version": "v1" }'; <br>}</pre> |
+| `$oidc_logout_path_params`         | Use for when `$oidc_logout_path_params_enable` is enabled. <br><br> **Example:** <br><pre>map $host $oidc_logout_endpoint { <br>    default "https://{my-app}.okta.com/oauth2/{version}/logout"; <br>} <br>map $host $oidc_authz_path_params { <br>    default '{ "my-app": "dev-9590480", "version": "v1" }'; <br>}</pre> |
 |||
 | `$oidc_logout_query_params_enable` | `1`: Enable additional query params when the IdP doesn't support [OIDC RP-initiated logout](https://openid.net/specs/openid-connect-rpinitiated-1_0.html#RPLogout). <br> `0`: [OIDC RP-initiated logout](https://openid.net/specs/openid-connect-rpinitiated-1_0.html#RPLogout).                      |
-| `$oidc_logout_query_params`        | Use for when `$oidc_logout_query_params_enable` is enabled. <br>**Example:**<pre> map $host $oidc_logout_query_params {<br>    # example 1. AWS Cognito Logout & prompt an user to sign in as another user.<br>    default '{<br>        "response_type": "code",<br>        "client_id"    : "$oidc_client",<br>        "redirect_uri" : "$redirect_base$redir_location",<br>        "state"        : "STATE",<br>        "scope"        : "$oidc_scopes"<br>    }';<br><br>    # example 2. AWS Cognito Logout & redirect back to client. <br>    default '{<br>        "client_id"    : "$oidc_client",<br>        "logout_uri"   : "$redirect_base/_logout"<br>    }';</pre><br> |
+| `$oidc_logout_query_params`        | Use for when `$oidc_logout_query_params_enable` is enabled. <br><br>**Example:**<pre> map $host $oidc_logout_query_params {<br>    # example 1. AWS Cognito Logout & prompt an user to sign in as another user.<br>    default '{<br>        "response_type": "code",<br>        "client_id"    : "$oidc_client",<br>        "redirect_uri" : "$redirect_base$redir_location",<br>        "state"        : "STATE",<br>        "scope"        : "$oidc_scopes"<br>    }';<br><br>    # example 2. AWS Cognito Logout & redirect back to client. <br>    default '{<br>        "client_id"    : "$oidc_client",<br>        "logout_uri"   : "$redirect_base/_logout"<br>    }';</pre><br> |
 |||
 | `$oidc_token_path_params_enable`   | `1`: Enable custom path params when `{arbitrary param-name}` is in the `$oidc_token_endpoint`. <br> `0`: Disable it. |
-| `$oidc_token_path_params`          |  **Example:** <br><pre>map $host $oidc_token_endpoint { <br>    default "https://{my-app}.okta.com/oauth2/{version}/token"; <br>} <br>map $host $oidc_authz_path_params { <br>    default '{ "my-app": "dev-9590480", "version": "v1" }'; <br>}</pre> |
+| `$oidc_token_path_params`          | Use for when `$oidc_token_path_params_enable` is enabled. <br><br> **Example:** <br><pre>map $host $oidc_token_endpoint { <br>    default "https://{my-app}.okta.com/oauth2/{version}/token"; <br>} <br>map $host $oidc_authz_path_params { <br>    default '{ "my-app": "dev-9590480", "version": "v1" }'; <br>}</pre> |
 |||
 | `$oidc_token_query_params_enable`  | `1`: Enable additional query params when the `$oidc_token_endpoint` needs them. <br> `0`: Disable it.                      |
-| `$oidc_token_query_params`         | Use for when `$oidc_token_query_params_enable` is enabled. <br> **Example:** <br><pre>map $host $oidc_token_query_params { <br>    default '{ "example": "data" }'; <br>} |
+| `$oidc_token_query_params`         | Use for when `$oidc_token_query_params_enable` is enabled. <br><br> **Example:** <br><pre>map $host $oidc_token_query_params { <br>    default '{ "example": "data" }'; <br>} |
 
 <br>
 
