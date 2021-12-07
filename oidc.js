@@ -44,9 +44,11 @@ export default {
 //    proxied to the IdP in exchange for a new id_token and access_token.
 //
 function auth(r) {
-    if (!r.variables.refresh_token || r.variables.refresh_token == '-') {
-        startIdPAuthZ(r);
-        return;
+    if (!isValidSession(r)) {
+        if (!r.variables.refresh_token || r.variables.refresh_token == '-') {
+            startIdPAuthZ(r);
+            return;
+        }
     }
     refershToken(r);
 }
@@ -146,7 +148,7 @@ function validateAccessToken(r) {
 function logout(r) {
     r.log('OIDC logout for ' + r.variables.cookie_session_id);
     var idToken = r.variables.id_token;
-    r.variables.request_id    = '-';
+    r.variables.session_id    = '-';
     r.variables.id_token      = '-';
     r.variables.access_token  = '-';
     r.variables.refresh_token = '-';
@@ -426,7 +428,8 @@ function handleSuccessfulTokenResponse(r, res) {
              return;
         }
 
-        // Add opaque ID token and access token to key/value store
+        // Generate session ID, and add opaque ID/access token to key/value store
+        r.variables.session_id       = generateSession(r)
         r.variables.new_id_token     = tokenset.id_token;
         r.variables.new_access_token = tokenset.access_token;
 
@@ -439,8 +442,8 @@ function handleSuccessfulTokenResponse(r, res) {
         }
         // Set cookie with request ID that is the key of each ID/access token,
         // and continue to process the original request.
-        r.log('OIDC success, creating session '    + r.variables.request_id);
-        r.headersOut['Set-Cookie'] = 'session_id=' + r.variables.request_id + 
+        r.log('OIDC success, creating session '    + r.variables.session_id);
+        r.headersOut['Set-Cookie'] = 'session_id=' + r.variables.session_id + 
                                      '; ' + r.variables.oidc_cookie_flags;
         r.return(302, r.variables.redirect_base + r.variables.cookie_auth_redir);
     } catch (e) {
@@ -474,7 +477,7 @@ function isValidToken(r, uri, token) {
 // - Choose a nonce for this flow for the client, and hash it for the IdP.
 //
 function getAuthZArgs(r) {
-    var noncePlain = r.variables.request_id;
+    var noncePlain = r.variables.session_id;
     var c = require('crypto');
     var h = c.createHmac('sha256', r.variables.oidc_hmac_key).update(noncePlain);
     var nonceHash   = h.digest('base64url');
@@ -724,6 +727,33 @@ function extractToken(r, key, is_bearer, validation_uri, msg) {
         msg += `, "` + key + `": "N/A"`;
     }
     return [true, msg]
+}
+
+// Generate session ID using remote address, user agent, and client ID.
+function generateSession(r) {
+    var time = new Date(Date.now());
+    var jsonSession = {
+        "remoteAddr": r.variables.remote_addr,
+        "userAgent" : r.variables.http_user_agent,
+        "clientID"  : r.variables.oidc_client
+    };
+    var data = JSON.stringify(jsonSession);
+    var c = require('crypto');
+    var h = c.createHmac('sha256', r.variables.oidc_hmac_key).update(data);
+    var session_id = h.digest('base64url');
+    return session_id;
+}
+
+// Check if session cookie is valid, and generate new session id otherwise.
+function isValidSession(r) {
+    r.log('Start checking if there is an existing session...')
+    var valid_session_id = generateSession(r);
+    if (!r.variables.cookie_session_id || 
+         r.variables.cookie_session_id == '-' ||
+         r.variables.session_id != valid_session_id) {
+        return false;
+    }
+    return true;
 }
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
