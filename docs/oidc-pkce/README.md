@@ -67,7 +67,7 @@ Let's set up PKCE into your application with Okta.
 
 > **Client ID Setup**:
   
-  Let's copy your client ID from the each IDP's setup, and either create [/etc/nginx/conf.d/oidc_credentials.conf](../../build-context/nginx/conf.d/oidc_credentials.conf) with the following configurations or paste them it to the file of [etc/nginx/conf.d/oidc_common.conf](../../build-context/nginx/conf.d/oidc_common.conf).
+  Let's copy your client ID from the each IDP's setup, and either create [/etc/nginx/conf.d/oidc_idp.conf](../../oidc_idp.conf) with the following configurations.
   Note that the `$oidc_client` directive isn't needed for PKCE workflow.
 
   ```nginx
@@ -80,7 +80,7 @@ Let's set up PKCE into your application with Okta.
 
 > **PKCE Setup**:
 
-  Let's set `1` to each `$host` of the `$oidc_pkce_enable` in the [etc/nginx/conf.d/oidc_common.conf](../../build-context/nginx/conf.d/oidc_common.conf). Note that other configurations (e.g. ) are same as the [prerequisites](../../docs/prerequisites.md#update-oidc-configurations).
+  Let's set `1` to each `$host` of the `$oidc_pkce_enable` in the [etc/nginx/conf.d/oidc_idp.conf](../../oidc_idp.conf).
   
   ```nginx
   map $host $oidc_pkce_enable {
@@ -96,11 +96,20 @@ Let's set up PKCE into your application with Okta.
 
   ```nginx
   server {
-      listen 80; # Use SSL/TLS in production
+      listen 8010; # Use SSL/TLS in production
       server_name mynginxpkce.okta;
 
-      include conf.d/sample_location_frontend.conf;
-      include conf.d/sample_location_api.conf;
+      location / {
+          proxy_pass http://my_frontend_site;
+          access_log /var/log/nginx/access.log oidc_jwt;
+      }
+
+      location /v1/api/example {
+          proxy_set_header Authorization "Bearer $access_token";
+          # proxy_set_header x-id-token  "$id_token"; # Enable when needed
+          proxy_pass http://my_backend_app;
+          access_log /var/log/nginx/access.log oidc_jwt;
+      }
   }
   ```  
 
