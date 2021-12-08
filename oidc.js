@@ -10,6 +10,7 @@ var ERR_AC_TOKEN         = 'OIDC Access Token validation error: ';
 var ERR_ID_TOKEN         = 'OIDC ID Token validation error: ';
 var ERR_IDP_AUTH         = 'OIDC unexpected response from IdP when sending AuthZ code (HTTP ';
 var ERR_TOKEN_RES        = 'OIDC AuthZ code sent but token response is not JSON. ';
+var WRN_SESSION          = 'OIDC session is invalid';
 var MSG_OK_REFRESH_TOKEN = 'OIDC refresh success, updating id_token for ';
 var MSG_REPLACE_TOKEN    = 'OIDC replacing previous refresh token (';
 
@@ -30,7 +31,8 @@ export default {
     redirectPostLogout,
     testExtractToken,
     validateIdToken,
-    validateAccessToken
+    validateAccessToken,
+    validateSession
 };
 
 // Start OIDC with either intializing new session or refershing token:
@@ -440,7 +442,7 @@ function handleSuccessfulTokenResponse(r, res) {
         } else {
             r.warn('OIDC no refresh token');
         }
-        // Set cookie with request ID that is the key of each ID/access token,
+        // Set cookie with session ID that is the key of each ID/access token,
         // and continue to process the original request.
         r.log('OIDC success, creating session '    + r.variables.session_id);
         r.headersOut['Set-Cookie'] = 'session_id=' + r.variables.session_id + 
@@ -733,10 +735,13 @@ function extractToken(r, key, is_bearer, validation_uri, msg) {
 function generateSession(r) {
     var time = new Date(Date.now());
     var jsonSession = {
-        "remoteAddr": r.variables.remote_addr,
-        "userAgent" : r.variables.http_user_agent,
-        "clientID"  : r.variables.oidc_client
+        'remoteAddr': r.variables.remote_addr,
+        'userAgent' : r.variables.http_user_agent,
+        'clientID'  : r.variables.oidc_client
     };
+    if (r.variables.session_id_time_enable == 1) {
+        jsonSession['timestamp'] = time.getHours() + ":" + time.getMinutes()
+    }
     var data = JSON.stringify(jsonSession);
     var c = require('crypto');
     var h = c.createHmac('sha256', r.variables.oidc_hmac_key).update(data);
@@ -746,14 +751,27 @@ function generateSession(r) {
 
 // Check if session cookie is valid, and generate new session id otherwise.
 function isValidSession(r) {
-    r.log('Start checking if there is an existing session...')
+    if (r.variables.session_validation_enable == 0) {
+        return false;
+    }
+    r.log('Start checking if there is an existing valid session...')
     var valid_session_id = generateSession(r);
-    if (!r.variables.cookie_session_id || 
-         r.variables.cookie_session_id == '-' ||
-         r.variables.session_id != valid_session_id) {
+    if (r.variables.cookie_session_id != valid_session_id) {
         return false;
     }
     return true;
+}
+
+// Check if session is valid to mitigate a security issue that anyone who holds 
+// the session cookie could play from any client (browsers or command line).
+//
+function validateSession(r) {
+    if (r.variables.session_validation_enable == 1 && !isValidSession(r)) {
+        r.warn(WRN_SESSION)
+        r.return(401, WRN_SESSION + '\n')
+        return
+    }
+    r.return(200)
 }
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
