@@ -46,12 +46,13 @@ export default {
 //    proxied to the IdP in exchange for a new id_token and access_token.
 //
 function auth(r) {
-    if (!isValidSession(r)) {
-        if (!r.variables.refresh_token || r.variables.refresh_token == '-') {
-            startIdPAuthZ(r);
-            return;
-        }
+    if (!r.variables.refresh_token || r.variables.refresh_token == '-' ||
+        !isValidSession(r)) {
+        r.log('start IdP authorization')
+        startIdPAuthZ(r);
+        return;
     }
+    r.log('start refreshing token')
     refershToken(r);
 }
 
@@ -314,6 +315,7 @@ function handleSuccessfulRefreshResponse(r, res) {
         }
 
         // Update opaque ID token and access token to key/value store.
+        r.variables.session_id   = r.variables.cookie_session_id
         r.variables.id_token     = tokenset.id_token;
         r.variables.access_token = tokenset.access_token;
 
@@ -677,7 +679,7 @@ function isValidRequiredClaims(r, msgPrefix, missingClaims) {
     return true
 }
 
-// Check if (fresh or refersh) token set (ID token, access token) is valid.
+// Check if (fresh or refresh) token set (ID token, access token) is valid.
 function isValidTokenSet(r, tokenset) {
     var isErr = true;
     if (tokenset.error) {
