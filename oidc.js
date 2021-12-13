@@ -10,6 +10,7 @@ var ERR_AC_TOKEN         = 'OIDC Access Token validation error: ';
 var ERR_ID_TOKEN         = 'OIDC ID Token validation error: ';
 var ERR_IDP_AUTH         = 'OIDC unexpected response from IdP when sending AuthZ code (HTTP ';
 var ERR_TOKEN_RES        = 'OIDC AuthZ code sent but token response is not JSON. ';
+var WRN_SESSION          = 'OIDC session is invalid';
 var MSG_OK_REFRESH_TOKEN = 'OIDC refresh success, updating id_token for ';
 var MSG_REPLACE_TOKEN    = 'OIDC replacing previous refresh token (';
 
@@ -30,7 +31,8 @@ export default {
     redirectPostLogout,
     testExtractToken,
     validateIdToken,
-    validateAccessToken
+    validateAccessToken,
+    validateSession
 };
 
 // Start OIDC with either intializing new session or refershing token:
@@ -44,10 +46,13 @@ export default {
 //    proxied to the IdP in exchange for a new id_token and access_token.
 //
 function auth(r) {
-    if (!r.variables.refresh_token || r.variables.refresh_token == '-') {
+    if (!r.variables.refresh_token || r.variables.refresh_token == '-' ||
+        !isValidSession(r)) {
+        r.log('start IdP authorization')
         startIdPAuthZ(r);
         return;
     }
+    r.log('start refreshing token')
     refershToken(r);
 }
 
@@ -144,9 +149,9 @@ function validateAccessToken(r) {
 // - https://openid.net/specs/openid-connect-rpinitiated-1_0.html#RPLogout
 // - https://openid.net/specs/openid-connect-rpinitiated-1_0.html#RedirectionAfterLogout
 function logout(r) {
-    r.log('OIDC logout for ' + r.variables.cookie_auth_token);
+    r.log('OIDC logout for ' + r.variables.cookie_session_id);
     var idToken = r.variables.id_token;
-    r.variables.request_id    = '-';
+    r.variables.session_id    = '-';
     r.variables.id_token      = '-';
     r.variables.access_token  = '-';
     r.variables.refresh_token = '-';
@@ -310,11 +315,12 @@ function handleSuccessfulRefreshResponse(r, res) {
         }
 
         // Update opaque ID token and access token to key/value store.
+        r.variables.session_id   = r.variables.cookie_session_id
         r.variables.id_token     = tokenset.id_token;
         r.variables.access_token = tokenset.access_token;
 
         // Update new refresh token to key/value store if we got a new one.
-        r.log(MSG_OK_REFRESH_TOKEN + r.variables.cookie_auth_token);
+        r.log(MSG_OK_REFRESH_TOKEN + r.variables.cookie_session_id);
         if (r.variables.refresh_token != tokenset.refresh_token) {
             r.log(MSG_REPLACE_TOKEN + r.variables.refresh_token + 
                     ') with new value: ' + tokenset.refresh_token);
@@ -426,7 +432,8 @@ function handleSuccessfulTokenResponse(r, res) {
              return;
         }
 
-        // Add opaque ID token and access token to key/value store
+        // Generate session ID, and add opaque ID/access token to key/value store
+        r.variables.session_id       = generateSession(r)
         r.variables.new_id_token     = tokenset.id_token;
         r.variables.new_access_token = tokenset.access_token;
 
@@ -437,10 +444,10 @@ function handleSuccessfulTokenResponse(r, res) {
         } else {
             r.warn('OIDC no refresh token');
         }
-        // Set cookie with request ID that is the key of each ID/access token,
+        // Set cookie with session ID that is the key of each ID/access token,
         // and continue to process the original request.
-        r.log('OIDC success, creating session '    + r.variables.request_id);
-        r.headersOut['Set-Cookie'] = 'auth_token=' + r.variables.request_id + 
+        r.log('OIDC success, creating session '    + r.variables.session_id);
+        r.headersOut['Set-Cookie'] = 'session_id=' + r.variables.session_id + 
                                      '; ' + r.variables.oidc_cookie_flags;
         r.return(302, r.variables.redirect_base + r.variables.cookie_auth_redir);
     } catch (e) {
@@ -474,7 +481,7 @@ function isValidToken(r, uri, token) {
 // - Choose a nonce for this flow for the client, and hash it for the IdP.
 //
 function getAuthZArgs(r) {
-    var noncePlain = r.variables.request_id;
+    var noncePlain = r.variables.session_id;
     var c = require('crypto');
     var h = c.createHmac('sha256', r.variables.oidc_hmac_key).update(noncePlain);
     var nonceHash   = h.digest('base64url');
@@ -672,7 +679,7 @@ function isValidRequiredClaims(r, msgPrefix, missingClaims) {
     return true
 }
 
-// Check if (fresh or refersh) token set (ID token, access token) is valid.
+// Check if (fresh or refresh) token set (ID token, access token) is valid.
 function isValidTokenSet(r, tokenset) {
     var isErr = true;
     if (tokenset.error) {
@@ -724,6 +731,49 @@ function extractToken(r, key, is_bearer, validation_uri, msg) {
         msg += `, "` + key + `": "N/A"`;
     }
     return [true, msg]
+}
+
+// Generate session ID using remote address, user agent, and client ID.
+function generateSession(r) {
+    var time = new Date(Date.now());
+    var jsonSession = {
+        'remoteAddr': r.variables.remote_addr,
+        'userAgent' : r.variables.http_user_agent,
+        'clientID'  : r.variables.oidc_client
+    };
+    if (r.variables.session_id_time_enable == 1) {
+        jsonSession['timestamp'] = time.getHours() + ":" + time.getMinutes()
+    }
+    var data = JSON.stringify(jsonSession);
+    var c = require('crypto');
+    var h = c.createHmac('sha256', r.variables.oidc_hmac_key).update(data);
+    var session_id = h.digest('base64url');
+    return session_id;
+}
+
+// Check if session cookie is valid, and generate new session id otherwise.
+function isValidSession(r) {
+    if (r.variables.session_validation_enable == 0) {
+        return false;
+    }
+    r.log('Start checking if there is an existing valid session...')
+    var valid_session_id = generateSession(r);
+    if (r.variables.cookie_session_id != valid_session_id) {
+        return false;
+    }
+    return true;
+}
+
+// Check if session is valid to mitigate a security issue that anyone who holds 
+// the session cookie could play from any client (browsers or command line).
+//
+function validateSession(r) {
+    if (r.variables.session_validation_enable == 1 && !isValidSession(r)) {
+        r.warn(WRN_SESSION)
+        r.return(401, WRN_SESSION + '\n')
+        return
+    }
+    r.return(200)
 }
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *

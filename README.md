@@ -275,4 +275,4 @@ This reference implementation for OpenID Connect is supported for NGINX Plus sub
   * **R19** Minor bug fixes
   * **R22** Separate configuration file, supports multiple IdPs. Configurable scopes and cookie flags. JavaScript is imported as an indepedent module with `js_import`. Container-friendly logging. Additional metrics for OIDC activity.
   * **R23** PKCE support. Added support for deployments behind another proxy or load balancer.
-  * **R25** Added `access_token` to proxy to the backend. Added endpoints of `/login` and `/userinfo`. Enhanced `/logout` endpoint with post logout uri. Token configuration to forward and return. Configurable query and path param to the IDP endpoint. Bundled test page.
+  * **R25** Added `access_token` to proxy to the backend. Added endpoints of `/login` and `/userinfo`. Enhanced `/logout` endpoint with post logout uri. Token configuration to forward and return. Configurable query and path param to the IDP endpoint. Bundled test page. Enhanced session management.
