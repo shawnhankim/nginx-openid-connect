@@ -150,17 +150,13 @@ function validateAccessToken(r) {
 // - https://openid.net/specs/openid-connect-rpinitiated-1_0.html#RedirectionAfterLogout
 function logout(r) {
     r.log('OIDC logout for ' + r.variables.cookie_session_id);
-    var idToken = r.variables.id_token;
-    r.variables.session_id    = '-';
-    r.variables.id_token      = '-';
-    r.variables.access_token  = '-';
-    r.variables.refresh_token = '-';
     var logout_endpoint = generateCustomEndpoint(r,
         r.variables.oidc_logout_endpoint,
         r.variables.oidc_logout_path_params_enable,
         r.variables.oidc_logout_path_params
     );
     var queryParams = '';
+    var idToken = r.variables.id_token;
 
     // OIDC RP-initiated logout.
     if (r.variables.oidc_logout_query_params_enable == 0) {
@@ -171,6 +167,10 @@ function logout(r) {
     } else {
         queryParams = generateQueryParams(r.variables.oidc_logout_query_params);
     }
+    r.variables.session_id    = '-';
+    r.variables.id_token      = '-';
+    r.variables.access_token  = '-';
+    r.variables.refresh_token = '-';
     r.return(302, logout_endpoint + queryParams);
 }
 
