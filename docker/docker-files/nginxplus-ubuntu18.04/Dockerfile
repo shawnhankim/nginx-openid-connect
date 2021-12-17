@@ -28,7 +28,7 @@ RUN set -x \
     && adduser --system --disabled-login --ingroup nginx --no-create-home --home /nonexistent --gecos "nginx user" --shell /bin/false --uid 1001 nginx \
     # Install prerequisite packages, vim for editing, then Install NGINX Plus
     && apt-get update && apt-get upgrade -y \
-    && DEBIAN_FRONTEND=noninteractive apt-get -qq -y install --no-install-recommends apt-transport-https lsb-release ca-certificates wget dnsutils gnupg vim-tiny apt-utils jq \
+    && DEBIAN_FRONTEND=noninteractive apt-get -qq -y install --no-install-recommends apt-transport-https lsb-release ca-certificates wget dnsutils gnupg vim-tiny apt-utils jq systemd uuid openjdk-8-jre curl \
     # Install NGINX Plus from repo (https://cs.nginx.com/repo_setup)
     && wget http://nginx.org/keys/nginx_signing.key && apt-key add nginx_signing.key \
     && printf "deb https://plus-pkgs.nginx.com/ubuntu `lsb_release -cs` nginx-plus\n" | tee /etc/apt/sources.list.d/nginx-plus.list \
@@ -185,23 +185,31 @@ RUN set -x \
 #COPY etc/ssl/my-nginx.example.com.key /etc/ssl/my-nginx.example.com.key
 
 RUN    mkdir -p /etc/nginx/conf.d                           \
+    && mkdir -p /usr/share/nginx/bin                        \
     && mkdir -p /usr/share/nginx/html/css                   \
-    && mkdir -p /etc/controller-agent/configurator/auxfiles
+    && mkdir -p /etc/controller-agent/configurator/auxfiles \
+    && mkdir -p /usr/lib/systemd/system/
 
+VOLUME /usr/share/nginx/bin
 VOLUME /usr/share/nginx/html
 VOLUME /etc/nginx
-
-RUN    chmod -R 777 /etc/nginx
-RUN    chmod -R 777 /etc/nginx/conf.d
-RUN    chmod -R 777 /usr/share/nginx/html/css
 
 # COPY (Nginx configuration) directory
 COPY  docker/build-context/content/   /usr/share/nginx/html/
 COPY  docker/build-context/nginx/     /etc/nginx/
+COPY  docker/build-context/idp/       /usr/share/nginx/bin/
 COPY  oidc*.conf                      /etc/nginx/conf.d/
 COPY  oidc*.js                        /etc/nginx/conf.d/
 
+RUN    chmod -R 777 /etc/nginx
+RUN    chmod -R 777 /etc/nginx/conf.d
+RUN    chmod -R 777 /usr/share/nginx/bin
+RUN    chmod -R 777 /usr/share/nginx/html/css
+
+RUN bash -c "/usr/share/nginx/bin/keycloak.sh"
+
+
 # EXPOSE ports, HTTP 80, HTTPS 443 and, Nginx status page 8010
-EXPOSE 80 8010
+EXPOSE 80 8010 8080
 STOPSIGNAL SIGTERM
 CMD ["nginx", "-g", "daemon off;"]
