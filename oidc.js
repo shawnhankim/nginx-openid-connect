@@ -5,14 +5,14 @@
  */
 
 // Constants for common error message. These will be cleaned up.
-var ERR_CFG_VARS         = 'OIDC missing configuration variables: ';
-var ERR_AC_TOKEN         = 'OIDC Access Token validation error: ';
-var ERR_ID_TOKEN         = 'OIDC ID Token validation error: ';
-var ERR_IDP_AUTH         = 'OIDC unexpected response from IdP when sending AuthZ code (HTTP ';
-var ERR_TOKEN_RES        = 'OIDC AuthZ code sent but token response is not JSON. ';
-var WRN_SESSION          = 'OIDC session is invalid';
-var MSG_OK_REFRESH_TOKEN = 'OIDC refresh success, updating id_token for ';
-var MSG_REPLACE_TOKEN    = 'OIDC replacing previous refresh token (';
+var ERR_CFG_VARS      = 'OIDC missing configuration variables: ';
+var ERR_AC_TOKEN      = 'OIDC Access Token validation error: ';
+var ERR_ID_TOKEN      = 'OIDC ID Token validation error: ';
+var ERR_IDP_AUTH      = 'OIDC unexpected response from IdP when sending AuthZ code (HTTP ';
+var ERR_TOKEN_RES     = 'OIDC AuthZ code sent but token response is not JSON. ';
+var WRN_SESSION       = 'OIDC session is invalid';
+var INF_REFRESH_TOKEN = 'OIDC refresh success, updating id_token for ';
+var INF_REPLACE_TOKEN = 'OIDC replacing previous refresh token (';
 
 // Flag to check if there is still valid session cookie. It is used by auth()
 // and validateIdToken().
@@ -320,9 +320,9 @@ function handleSuccessfulRefreshResponse(r, res) {
         r.variables.access_token = tokenset.access_token;
 
         // Update new refresh token to key/value store if we got a new one.
-        r.log(MSG_OK_REFRESH_TOKEN + r.variables.cookie_session_id);
+        r.log(INF_REFRESH_TOKEN + r.variables.cookie_session_id);
         if (r.variables.refresh_token != tokenset.refresh_token) {
-            r.log(MSG_REPLACE_TOKEN + r.variables.refresh_token + 
+            r.log(INF_REPLACE_TOKEN + r.variables.refresh_token + 
                     ') with new value: ' + tokenset.refresh_token);
             r.variables.refresh_token = tokenset.refresh_token;
         }
