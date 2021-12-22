@@ -770,7 +770,7 @@ function isValidSession(r) {
 function validateSession(r) {
     if (r.variables.session_validation_enable == 1 && !isValidSession(r)) {
         r.warn(WRN_SESSION)
-        r.return(401, WRN_SESSION + '\n')
+        r.return(401, '{"message": "' + WRN_SESSION + '"}\n')
         return
     }
     r.return(200)

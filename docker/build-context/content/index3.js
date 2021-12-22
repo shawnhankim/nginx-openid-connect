@@ -113,7 +113,7 @@ var eventHandlerCookie = function (evt) {
 // - /v1/api/2: cookie is used. The bearer access token is also passed to the 
 //              backend API via `proxy_set_header Authorization` directive.
 var eventHandlerProxiedAPI = function (evt) {
-  var headers = {};
+  var headers = { 'X-Client-Id': 'my-client-id' };
   doAPIRequest(
     evt,
     '/v1/api/example', 
@@ -145,13 +145,72 @@ var doNginxEndpointRequest = function(evt, uri) {
 
 // Sign in by clicking 'Sign In' button of the UI.
 var doSignIn = function(evt) {
+  // showUserInfo(evt)
   doNginxEndpointRequest(evt, '/login')
+  // doAPIRequestHtmlResponse(evt, '/login')
+  // doAPIRequest2(evt, '/login')
 };
 
 // Sign in by clicking 'Sign In' button of the UI.
 var doSignOut = function(evt) {
   doNginxEndpointRequest(evt, '/logout')
 };
+
+// // Request an API with application/json type response.
+// var doAPIRequestHtmlResponse = function(evt, uri) {
+//   if (evt && evt.type === 'keypress' && evt.keyCode !== 13) {
+//     return;
+//   }
+//   const url = window.location.origin + uri;
+//   var headers = { 'X-Client-Id': 'my-client-id' };
+//   fetch(url, {
+//       method : 'GET',
+//       mode   : 'cors',
+//       headers: headers
+//   }).then(function(response) {
+//       return response.text();
+//   }).then(function (html) {
+//       var parser = newDOMParser();
+//       var doc = parser.parseFromString(html, 'text/html');
+//       var img = doc.querySelector('img');
+//       console.log(img);
+//   }).catch(function(err){
+//       console.warn('something went wrong.', err)
+//   })
+// }
+
+// // Request an API with application/json type response.
+// var doAPIRequest2 = function(evt, uri) {
+//   if (evt && evt.type === 'keypress' && evt.keyCode !== 13) {
+//     return false;
+//   }
+//   var headers = { 'X-Client-Id': 'my-client-id' };
+//   const url = window.location.origin + uri;
+//   fetch(url, {
+//       method : 'GET',
+//       mode   : 'cors',
+//       headers: headers
+//   })
+//   .then((response) => {
+//     console.log('/login requested');
+//     console.log(response.statusText);
+//     showResponseStatus(response.status, response.statusText, url)
+//     showMessageDetail(MSG_EMPTY_JSON)
+//     if (!response.ok) {
+//       throw new Error(response.error)
+//     }
+//     return response.json();
+//   })
+//   .then((data) => {
+//     showMessage(msgAfter)
+//     showMessageDetail(JSON.stringify(data))
+//   })
+//   .catch(function(error) {
+//     console.warn('something went wrong.', err)
+//   });
+//   return true;
+// }
+
 
 // Request an API with application/json type response.
 var doAPIRequest = function(evt, uri, msgBefore, msgAfter, headers) {
@@ -168,10 +227,10 @@ var doAPIRequest = function(evt, uri, msgBefore, msgAfter, headers) {
   .then((response) => {
     showResponseStatus(response.status, response.statusText, url)
     showMessageDetail(MSG_EMPTY_JSON)
-    if (!response.ok) {
-      throw new Error(response.error)
+    if (response.ok || response.status == 400) {
+      return response.json();
     }
-    return response.json();
+    throw new Error(response.error)
   })
   .then((data) => {
     showMessage(msgAfter)
@@ -195,19 +254,19 @@ var doAPIRequest = function(evt, uri, msgBefore, msgAfter, headers) {
   .catch(function(error) {
     if (uri == '/userinfo') {
       initButtonsBeforeSignIn()
-      showMessage('Need to sign-in to retrieve user information!');
+      showMessage('Need to sign-in to retrieve user info!');
       showMessageDetail(MSG_EMPTY_JSON)
     } else {
       showMessage(error);
       showMessageDetail(MSG_EMPTY_JSON)
-      }
+    }
   });
   return true;
 }
 
 // Show user information in the UI via the endpoint of /userinfo
 var showUserInfo = function(evt) {
-  var headers = {};
+  var headers = { 'X-Client-Id': 'my-client-id' };
   doAPIRequest(
     evt,
     '/userinfo', 
