@@ -21,7 +21,8 @@ var btnUserInfo      = document.getElementById('user-info');
 var jsonViewer       = new JSONViewer();
 var viewerJSON       = document.querySelector("#json").appendChild(jsonViewer.getContainer());
 var accessToken      = '';
-var userName         = ''
+var userName         = '';
+var X_CLIENT_ID      = 'my-client-id';
 
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
@@ -113,7 +114,7 @@ var eventHandlerCookie = function (evt) {
 // - /v1/api/2: cookie is used. The bearer access token is also passed to the 
 //              backend API via `proxy_set_header Authorization` directive.
 var eventHandlerProxiedAPI = function (evt) {
-  var headers = { 'X-Client-Id': 'my-client-id' };
+  var headers = { 'X-Client-Id': X_CLIENT_ID };
   doAPIRequest(
     evt,
     '/v1/api/example', 
@@ -140,20 +141,38 @@ var doNginxEndpointRequest = function(evt, uri) {
   if (evt && evt.type === 'keypress' && evt.keyCode !== 13) {
     return;
   }
-  location.href = window.location.origin + uri;
+  location.href = window.location.origin + uri + '?X-Client-Id=' + X_CLIENT_ID;
 };
+
+var doAPIRequest3 = function(uri) {
+  var xhttp = new XMLHttpRequest();
+  const url = window.location.origin + uri;
+  xhttp.onreadystatechange = function() {
+      if (this.readyState == 4 && this.status == 200) {
+         // Typical action to be performed when the document is ready:
+          var response = xhttp.responseText;
+          console.log("ok"+response);
+          location.href = window.location.origin
+      }
+  };
+  xhttp.open("GET", url, true);
+  xhttp.setRequestHeader("X-Client-Id", X_CLIENT_ID);
+  xhttp.send();
+}
 
 // Sign in by clicking 'Sign In' button of the UI.
 var doSignIn = function(evt) {
   // showUserInfo(evt)
-  doNginxEndpointRequest(evt, '/login')
+  // doNginxEndpointRequest(evt, '/login')
   // doAPIRequestHtmlResponse(evt, '/login')
-  // doAPIRequest2(evt, '/login')
+  //doAPIRequest2(evt, '/login')
+  doAPIRequest3('/login')
 };
 
 // Sign in by clicking 'Sign In' button of the UI.
 var doSignOut = function(evt) {
   doNginxEndpointRequest(evt, '/logout')
+  // doAPIRequest2(evt, '/logout')
 };
 
 // // Request an API with application/json type response.
@@ -172,44 +191,50 @@ var doSignOut = function(evt) {
 //   }).then(function (html) {
 //       var parser = newDOMParser();
 //       var doc = parser.parseFromString(html, 'text/html');
-//       var img = doc.querySelector('img');
-//       console.log(img);
+//       // var img = doc.querySelector('img');
+//       // console.log(img);
 //   }).catch(function(err){
 //       console.warn('something went wrong.', err)
 //   })
 // }
 
-// // Request an API with application/json type response.
-// var doAPIRequest2 = function(evt, uri) {
-//   if (evt && evt.type === 'keypress' && evt.keyCode !== 13) {
-//     return false;
-//   }
-//   var headers = { 'X-Client-Id': 'my-client-id' };
-//   const url = window.location.origin + uri;
-//   fetch(url, {
-//       method : 'GET',
-//       mode   : 'cors',
-//       headers: headers
-//   })
-//   .then((response) => {
-//     console.log('/login requested');
-//     console.log(response.statusText);
-//     showResponseStatus(response.status, response.statusText, url)
-//     showMessageDetail(MSG_EMPTY_JSON)
-//     if (!response.ok) {
-//       throw new Error(response.error)
-//     }
-//     return response.json();
-//   })
-//   .then((data) => {
-//     showMessage(msgAfter)
-//     showMessageDetail(JSON.stringify(data))
-//   })
-//   .catch(function(error) {
-//     console.warn('something went wrong.', err)
-//   });
-//   return true;
-// }
+// Request an API with application/json type response.
+var doAPIRequest2 = function(evt, uri) {
+  if (evt && evt.type === 'keypress' && evt.keyCode !== 13) {
+    return false;
+  }
+  var headers = { 
+    'X-Client-Id'                : X_CLIENT_ID,
+    'Access-Control-Allow-Origin': '*',
+    'Acces-Control-Allow-Methods': 'GET, POST, PATCH, DELETE'
+  };
+  const url = window.location.origin + uri;
+  fetch(url, {
+      method : 'GET',
+      mode   : 'cors',
+      headers: headers
+  })
+  .then((response) => {
+    console.log('/login requested');
+    console.log(response.statusText);
+    showResponseStatus(response.status, response.statusText, url)
+    showMessageDetail(MSG_EMPTY_JSON)
+    if (!response.ok) {
+      throw new Error(response.error)
+    }
+    return response.json();
+  })
+  .then((data) => {
+    showMessage(msgAfter)
+    showMessageDetail(JSON.stringify(data))
+    // this.goToMain();
+    location.href = window.location.origin
+  })
+  .catch(function(error) {
+    console.warn('something went wrong.', error)
+  });
+  return true;
+}
 
 
 // Request an API with application/json type response.
@@ -266,7 +291,7 @@ var doAPIRequest = function(evt, uri, msgBefore, msgAfter, headers) {
 
 // Show user information in the UI via the endpoint of /userinfo
 var showUserInfo = function(evt) {
-  var headers = { 'X-Client-Id': 'my-client-id' };
+  var headers = { 'X-Client-Id': X_CLIENT_ID };
   doAPIRequest(
     evt,
     '/userinfo', 

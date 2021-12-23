@@ -10,6 +10,7 @@ var ERR_AC_TOKEN      = 'OIDC Access Token validation error: ';
 var ERR_ID_TOKEN      = 'OIDC ID Token validation error: ';
 var ERR_IDP_AUTH      = 'OIDC unexpected response from IdP when sending AuthZ code (HTTP ';
 var ERR_TOKEN_RES     = 'OIDC AuthZ code sent but token response is not JSON. ';
+var ERR_X_CLIENT_ID   = 'X-Client-Id should be in either header or query params';
 var WRN_SESSION       = 'OIDC session is invalid';
 var INF_REFRESH_TOKEN = 'OIDC refresh success, updating id_token for ';
 var INF_REPLACE_TOKEN = 'OIDC replacing previous refresh token (';
@@ -32,7 +33,9 @@ export default {
     testExtractToken,
     validateIdToken,
     validateAccessToken,
-    validateSession
+    validateSession,
+    validateSessionAndXClientId,
+    validateXClientId
 };
 
 // Start OIDC with either intializing new session or refershing token:
@@ -495,6 +498,7 @@ function getAuthZArgs(r) {
         'auth_redir=' + r.variables.request_uri + '; ' + cookieFlags,
         'auth_nonce=' + noncePlain + '; ' + cookieFlags
     ];
+    r.headersOut['Origin'] = r.variables.host;
     r.variables.nonce_hash = nonceHash;
 
     if (r.variables.oidc_pkce_enable == 1) {
@@ -771,10 +775,60 @@ function validateSession(r) {
     if (r.variables.session_validation_enable == 1 && !isValidSession(r)) {
         r.warn(WRN_SESSION)
         r.return(401, '{"message": "' + WRN_SESSION + '"}\n')
-        return
+        return false;
+    }
+    r.return(200) 
+    return true;
+}
+
+// This is to be called by nginx configuration so that it returns HTTP status
+// based on checking if `X-Client-Id` is in either header or query params of request.
+function validateXClientId(r) {
+    if (!isValidXClientId(r)) {
+        r.return(400)
+        return;
     }
     r.return(200)
 }
+
+// Check if `X-Client-Id` is in either header or query params of HTTP request.
+function isValidXClientId(r) {
+    if (r.variables.x_client_id_validation_enable == 1) {
+        var x_client_id = '';
+        try {
+            var headers = r.headersIn['X-Client-Id'].split(' ');
+            x_client_id = headers[0]
+        } catch (e) {
+            try {
+                var queryParams = r.variables.query_string.split('=');
+                r.log('##### query ' + queryParams)
+                if (queryParams[0] == 'X-Client-Id') {
+                    x_client_id = queryParams[1]
+                }
+            } catch (e) {
+                r.warn(ERR_X_CLIENT_ID)
+                return false
+            }
+        }
+        r.variables.x_client_id = x_client_id;
+    }
+    return true
+}
+
+// This is to be called by nginx configuration so that it returns HTTP status
+// based on checking 
+// Check if session is valid, and if X-Client-Id is in either header or query
+// parameters of API request.
+//
+function validateSessionAndXClientId(r) {
+    // if (r.variables.session_validation_enable == 1 && !isValidSession(r)) {
+    //     r.warn(WRN_SESSION)
+    //     r.return(401, '{"message": "' + WRN_SESSION + '"}\n')
+    //     return;
+    // }
+    validateXClientId(r)
+}
+
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  *                                                                             *

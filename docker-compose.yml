@@ -1,4 +1,4 @@
-version: '3.7'
+version: '3.4'
 
 networks: 
   mynetwork:
@@ -42,11 +42,11 @@ services:
     networks:
       - mynetwork
 
-  nginx-plus-ubuntu18.04:
+  nginx_plus_ubuntu18.04:
     build:
       context: ./
       dockerfile: ./docker/docker-files/nginxplus-ubuntu18.04/Dockerfile
-    image: nginxplus-oidc-ubuntu18.04
+    image: nginxplus_oidc_ubuntu18.04
     ports:
       - 80:80
       - 8010:8010
