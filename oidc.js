@@ -5,15 +5,16 @@
  */
 
 // Constants for common error message. These will be cleaned up.
-var ERR_CFG_VARS      = 'OIDC missing configuration variables: ';
-var ERR_AC_TOKEN      = 'OIDC Access Token validation error: ';
-var ERR_ID_TOKEN      = 'OIDC ID Token validation error: ';
-var ERR_IDP_AUTH      = 'OIDC unexpected response from IdP when sending AuthZ code (HTTP ';
-var ERR_TOKEN_RES     = 'OIDC AuthZ code sent but token response is not JSON. ';
-var ERR_X_CLIENT_ID   = 'X-Client-Id should be in either header or query params';
-var WRN_SESSION       = 'OIDC session is invalid';
-var INF_REFRESH_TOKEN = 'OIDC refresh success, updating id_token for ';
-var INF_REPLACE_TOKEN = 'OIDC replacing previous refresh token (';
+var ERR_CFG_VARS              = 'OIDC missing configuration variables: ';
+var ERR_AC_TOKEN              = 'OIDC Access Token validation error: ';
+var ERR_ID_TOKEN              = 'OIDC ID Token validation error: ';
+var ERR_IDP_AUTH              = 'OIDC unexpected response from IdP when sending AuthZ code (HTTP ';
+var ERR_TOKEN_RES             = 'OIDC AuthZ code sent but token response is not JSON. ';
+var ERR_X_CLIENT_ID_COOKIE    = 'X-Client-Id should be in cookie';
+var ERR_X_CLIENT_ID_NOT_FOUND = 'X-Client-Id not found in the IdP app';
+var WRN_SESSION               = 'OIDC session is invalid';
+var INF_REFRESH_TOKEN         = 'OIDC refresh success, updating id_token for ';
+var INF_REPLACE_TOKEN         = 'OIDC replacing previous refresh token (';
 
 // Flag to check if there is still valid session cookie. It is used by auth()
 // and validateIdToken().
@@ -33,22 +34,30 @@ export default {
     testExtractToken,
     validateIdToken,
     validateAccessToken,
-    validateSession,
-    validateSessionAndXClientId,
-    validateXClientId
+    validateSession
 };
 
 // Start OIDC with either intializing new session or refershing token:
 //
-// 1. Start IdP authorization:
+// 1. Validate X-Client-Id
+//  - Check if X-Client-Id is provided in query params of /login endpoint if the
+//    variable of `$x_client_id_validation_enable` is true.
+//  - Otherwise, default IdP's application can be used.
+//  - `$x_client_id` is for customer to identity one of applications so that this
+//    mechanism supports multiple IdPs.
+//
+// 2. Start IdP authorization:
 //  - Check all necessary configuration variables (referenced only by NJS).
 //  - Redirect client to the IdP login page w/ the cookies we need for state.
 //
-// 2. Refresh ID / access token:
+// 3. Refresh ID / access token:
 //  - Pass the refresh token to the /_refresh location so that it can be
 //    proxied to the IdP in exchange for a new id_token and access_token.
 //
 function auth(r) {
+    if (!isValidXClientId(r)) {
+        return;
+    }
     if (!r.variables.refresh_token || r.variables.refresh_token == '-' ||
         !isValidSession(r)) {
         r.log('start IdP authorization')
@@ -777,58 +786,30 @@ function validateSession(r) {
         r.return(401, '{"message": "' + WRN_SESSION + '"}\n')
         return false;
     }
-    r.return(200) 
+    r.return(200, '{"message": "' + WRN_SESSION + '"}\n') 
     return true;
 }
 
-// This is to be called by nginx configuration so that it returns HTTP status
-// based on checking if `X-Client-Id` is in either header or query params of request.
-function validateXClientId(r) {
-    if (!isValidXClientId(r)) {
-        r.return(400)
-        return;
-    }
-    r.return(200)
-}
-
-// Check if `X-Client-Id` is in either header or query params of HTTP request.
+// Check if `X-Client-Id` is in query params of HTTP request, and if the name of
+// IdP's app is matched with the `$x_client_id` so that we can validate it is
+// valid when logging-in if `x_client_id_validation_enable` is enabled.
+//
 function isValidXClientId(r) {
-    if (r.variables.x_client_id_validation_enable == 1) {
-        var x_client_id = '';
-        try {
-            var headers = r.headersIn['X-Client-Id'].split(' ');
-            x_client_id = headers[0]
-        } catch (e) {
-            try {
-                var queryParams = r.variables.query_string.split('=');
-                r.log('##### query ' + queryParams)
-                if (queryParams[0] == 'X-Client-Id') {
-                    x_client_id = queryParams[1]
-                }
-            } catch (e) {
-                r.warn(ERR_X_CLIENT_ID)
-                return false
-            }
+        if (r.variables.x_client_id_validation_enable == 1) {
+        if (!r.variables.cookie_client_id) {
+            r.warn(ERR_X_CLIENT_ID_COOKIE)
+            r.return(400, '{"message": "' + ERR_X_CLIENT_ID_COOKIE + '"}\n')
+            return false
         }
-        r.variables.x_client_id = x_client_id;
+        if (r.variables.oidc_app_name == '') {
+            var errMsg = ERR_X_CLIENT_ID_NOT_FOUND + ': ' + r.variables.cookie_client_id;
+            r.warn(errMsg)
+            r.return(404, '{"message": "' + errMsg + '"}\n')
+            return false
+        }
     }
     return true
 }
-
-// This is to be called by nginx configuration so that it returns HTTP status
-// based on checking 
-// Check if session is valid, and if X-Client-Id is in either header or query
-// parameters of API request.
-//
-function validateSessionAndXClientId(r) {
-    // if (r.variables.session_validation_enable == 1 && !isValidSession(r)) {
-    //     r.warn(WRN_SESSION)
-    //     r.return(401, '{"message": "' + WRN_SESSION + '"}\n')
-    //     return;
-    // }
-    validateXClientId(r)
-}
-
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  *                                                                             *
