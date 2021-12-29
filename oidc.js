@@ -795,7 +795,7 @@ function validateSession(r) {
 // valid when logging-in if `x_client_id_validation_enable` is enabled.
 //
 function isValidXClientId(r) {
-        if (r.variables.x_client_id_validation_enable == 1) {
+    if (r.variables.x_client_id_validation_enable == 1) {
         if (!r.variables.cookie_client_id) {
             r.warn(ERR_X_CLIENT_ID_COOKIE)
             r.return(400, '{"message": "' + ERR_X_CLIENT_ID_COOKIE + '"}\n')

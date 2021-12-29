@@ -160,11 +160,6 @@ var doSignIn = function(evt) {
   
   var x_client_id = getClientId();
   setCookie('client_id', x_client_id)
-  // var uri = '/login'
-  // if (x_client_id != '') {
-  //   uri += '?X-Client-Id=' + x_client_id;
-  // }
-  // doNginxEndpointRequest(evt, uri);
   doNginxEndpointRequest(evt, '/login');
 };
 
