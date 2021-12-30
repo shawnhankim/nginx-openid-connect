@@ -5,14 +5,16 @@
  */
 
 // Constants for common error message. These will be cleaned up.
-var ERR_CFG_VARS      = 'OIDC missing configuration variables: ';
-var ERR_AC_TOKEN      = 'OIDC Access Token validation error: ';
-var ERR_ID_TOKEN      = 'OIDC ID Token validation error: ';
-var ERR_IDP_AUTH      = 'OIDC unexpected response from IdP when sending AuthZ code (HTTP ';
-var ERR_TOKEN_RES     = 'OIDC AuthZ code sent but token response is not JSON. ';
-var WRN_SESSION       = 'OIDC session is invalid';
-var INF_REFRESH_TOKEN = 'OIDC refresh success, updating id_token for ';
-var INF_REPLACE_TOKEN = 'OIDC replacing previous refresh token (';
+var ERR_CFG_VARS              = 'OIDC missing configuration variables: ';
+var ERR_AC_TOKEN              = 'OIDC Access Token validation error: ';
+var ERR_ID_TOKEN              = 'OIDC ID Token validation error: ';
+var ERR_IDP_AUTH              = 'OIDC unexpected response from IdP when sending AuthZ code (HTTP ';
+var ERR_TOKEN_RES             = 'OIDC AuthZ code sent but token response is not JSON. ';
+var ERR_X_CLIENT_ID_COOKIE    = 'X-Client-Id should be in cookie';
+var ERR_X_CLIENT_ID_NOT_FOUND = 'X-Client-Id not found in the IdP app';
+var WRN_SESSION               = 'OIDC session is invalid';
+var INF_REFRESH_TOKEN         = 'OIDC refresh success, updating id_token for ';
+var INF_REPLACE_TOKEN         = 'OIDC replacing previous refresh token (';
 
 // Flag to check if there is still valid session cookie. It is used by auth()
 // and validateIdToken().
@@ -37,15 +39,25 @@ export default {
 
 // Start OIDC with either intializing new session or refershing token:
 //
-// 1. Start IdP authorization:
+// 1. Validate X-Client-Id
+//  - Check if X-Client-Id is provided in query params of /login endpoint if the
+//    variable of `$x_client_id_validation_enable` is true.
+//  - Otherwise, default IdP's application can be used.
+//  - `$x_client_id` is for customer to identity one of applications so that this
+//    mechanism supports multiple IdPs.
+//
+// 2. Start IdP authorization:
 //  - Check all necessary configuration variables (referenced only by NJS).
 //  - Redirect client to the IdP login page w/ the cookies we need for state.
 //
-// 2. Refresh ID / access token:
+// 3. Refresh ID / access token:
 //  - Pass the refresh token to the /_refresh location so that it can be
 //    proxied to the IdP in exchange for a new id_token and access_token.
 //
 function auth(r) {
+    if (!isValidXClientId(r)) {
+        return;
+    }
     if (!r.variables.refresh_token || r.variables.refresh_token == '-' ||
         !isValidSession(r)) {
         r.log('start IdP authorization')
@@ -495,6 +507,7 @@ function getAuthZArgs(r) {
         'auth_redir=' + r.variables.request_uri + '; ' + cookieFlags,
         'auth_nonce=' + noncePlain + '; ' + cookieFlags
     ];
+    r.headersOut['Origin'] = r.variables.host;
     r.variables.nonce_hash = nonceHash;
 
     if (r.variables.oidc_pkce_enable == 1) {
@@ -770,10 +783,32 @@ function isValidSession(r) {
 function validateSession(r) {
     if (r.variables.session_validation_enable == 1 && !isValidSession(r)) {
         r.warn(WRN_SESSION)
-        r.return(401, WRN_SESSION + '\n')
-        return
+        r.return(401, '{"message": "' + WRN_SESSION + '"}\n')
+        return false;
     }
-    r.return(200)
+    r.return(200, '{"message": "' + WRN_SESSION + '"}\n') 
+    return true;
+}
+
+// Check if `X-Client-Id` is in query params of HTTP request, and if the name of
+// IdP's app is matched with the `$x_client_id` so that we can validate it is
+// valid when logging-in if `x_client_id_validation_enable` is enabled.
+//
+function isValidXClientId(r) {
+    if (r.variables.x_client_id_validation_enable == 1) {
+        if (!r.variables.cookie_client_id) {
+            r.warn(ERR_X_CLIENT_ID_COOKIE)
+            r.return(400, '{"message": "' + ERR_X_CLIENT_ID_COOKIE + '"}\n')
+            return false
+        }
+        if (r.variables.oidc_app_name == '') {
+            var errMsg = ERR_X_CLIENT_ID_NOT_FOUND + ': ' + r.variables.cookie_client_id;
+            r.warn(errMsg)
+            r.return(404, '{"message": "' + errMsg + '"}\n')
+            return false
+        }
+    }
+    return true
 }
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *

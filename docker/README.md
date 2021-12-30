@@ -107,4 +107,7 @@ For your convenience, you could use the following test tool in the main web page
 
 - Access your frontend page (e.g. `http://my-nginx.example.com:8010/`) via your web browser.
 - Sample frontend page as a OIDC test tool
+  - The default client ID is `my-client-id` in the example of this repo.
+  - You could set your IdP app's client ID before signing-in.
   ![](./img/nginx-oidc-test-tool.png)
+  
