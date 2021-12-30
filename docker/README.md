@@ -54,7 +54,8 @@ Modify frontend/backend and OIDC configuration with NGINX Plus via [this link](h
 > Note that you can test the sample of protected frontend site and backend app based on NGINX OIDC without modifying the file in this repository for your convenience.
 - Edit `/etc/hosts` file with the server name in your local machine like:
   ```
-  127.0.0.1      my-nginx.example.com
+  127.0.0.1      my-nginx.example.com  # host name of sample frontend site
+  127.0.0.1      host.docker.internal  # host name of docker container for local Keycloak testing
   ```
 
 ### Modify OIDC Configuration
