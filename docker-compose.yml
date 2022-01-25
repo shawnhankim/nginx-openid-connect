@@ -8,10 +8,11 @@ networks:
 services:
 
   postgres:
-      image: postgres:12.0-alpine
+      container_name: idp-db
+      image: postgres:12.0
       volumes:
         - type: bind
-          source: $IDP_DATA_PATH
+          source: ./docker/build-context/data
           target: /var/lib/postgresql/data
       environment:
         POSTGRES_DB: keycloak
@@ -23,6 +24,7 @@ services:
        - mynetwork
         
   keycloak:
+    container_name: idp-keycloak
     image: jboss/keycloak:15.1.0
     environment:
       DB_VENDOR: POSTGRES
@@ -43,6 +45,7 @@ services:
       - mynetwork
 
   nginx_plus_ubuntu18.04:
+    container_name: nginx-plus-oidc
     build:
       context: ./
       dockerfile: ./docker/docker-files/nginxplus-ubuntu18.04/Dockerfile
@@ -52,10 +55,10 @@ services:
       - 8010:8010
     volumes:
       - type: bind
-        source: $NGINX_CONF_PATH
+        source: ./
         target: /etc/nginx/conf.d/
       - type: bind
-        source: $NGINX_HTML_PATH
+        source: ./docker/build-context/content
         target: /usr/share/nginx/html/
     networks:
       - mynetwork

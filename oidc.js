@@ -39,9 +39,9 @@ export default {
 
 // Start OIDC with either intializing new session or refershing token:
 //
-// 1. Validate X-Client-Id
-//  - Check if X-Client-Id is provided in query params of /login endpoint if the
-//    variable of `$x_client_id_validation_enable` is true.
+// 1. Validate client_id
+//  - Check if client_id is provided in the cookie of /login endpoint if the
+//    variable of `$client_id_validation_enable` is true.
 //  - Otherwise, default IdP's application can be used.
 //  - `$x_client_id` is for customer to identity one of applications so that this
 //    mechanism supports multiple IdPs.
@@ -792,10 +792,10 @@ function validateSession(r) {
 
 // Check if `X-Client-Id` is in query params of HTTP request, and if the name of
 // IdP's app is matched with the `$x_client_id` so that we can validate it is
-// valid when logging-in if `x_client_id_validation_enable` is enabled.
+// valid when logging-in if `client_id_validation_enable` is enabled.
 //
 function isValidXClientId(r) {
-    if (r.variables.x_client_id_validation_enable == 1) {
+    if (r.variables.client_id_validation_enable == 1) {
         if (!r.variables.cookie_client_id) {
             r.warn(ERR_X_CLIENT_ID_COOKIE)
             r.return(400, '{"message": "' + ERR_X_CLIENT_ID_COOKIE + '"}\n')
