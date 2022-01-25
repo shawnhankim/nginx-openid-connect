@@ -91,9 +91,6 @@ Set up your local environment for testing OIDC workflows based on NGINX Plus doc
 - **Run a Docker container based on the image:**
   This is to locally edit files and reload `nginx -s reload` for your convenient testing in container(s).
   ```bash
-  $ NGINX_CONF_PATH=/Users/{user name}/{your github path}/
-  $ NGINX_HTML_PATH=/Users/{user name}/{your github path}/build-context/content
-  $ IDP_DATA_PATH=/Users/{user name}/{your github path}/build-context/data
   $ docker-compose up -d
   ```
 
