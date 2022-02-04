@@ -7,7 +7,7 @@ This directory provides additional documents to help you set up OIDC configurati
 - [NGINX Plus Configuration Details](./oidc-nginx-config/)
 - [NGINX Plus PKCE Setup Examples](./oidc-pkce/)
 - [How to Run NGINX Plus OIDC In Docker](../docker/)
-- [How to Customize Tokens with a Custom Claim](../oidc-custom-claim/)
+- [How to Customize Tokens with a Custom Claim](./oidc-custom-claim/)
 
 ## References
 - [NGINX OpenID Connect](https://github.com/nginxinc/nginx-openid-connect)
