@@ -77,27 +77,42 @@ Modify frontend/backend and OIDC configuration with NGINX Plus via [this link](h
 Set up your local environment for testing OIDC workflows based on NGINX Plus docker container as follows.
 
 - [Install Docker Compose](https://docs.docker.com/compose/install/)
-- **Create a Docker image called `nginxplus-ubuntu18.04`**:
+- **Create a Docker image called `nginx-plus-oidc`**:
   ```
   $ docker-compose build --no-cache
-   ```
+  ```
 
 - **Clean out old images and volumes** if you want:
-  ```
-  $ docker system prune -a && \
-    docker volume rm $(docker volume ls -qf dangling=true)
-  ```
+  - Option 1:
+    ```
+    $ docker system prune -a && \
+      docker volume rm $(docker volume ls -qf dangling=true)
+    ```
+  - Option 2:
+    ```
+    $ make clean
+    ```
 
 - **Run a Docker container based on the image:**
   This is to locally edit files and reload `nginx -s reload` for your convenient testing in container(s).
-  ```bash
-  $ docker-compose up -d
-  ```
+  - Option 1:
+    ```bash
+    $ docker-compose up -d
+    ```
+  - Option 2:
+    ```bash
+    $ make start
+    ```
 
 - **Execute the following command if you want to stop the container:**
-  ```bash
-  $ docker-compose down
-  ```
+  - Option 1:
+    ```bash
+    $ docker-compose down
+    ```
+  - Option 2:
+    ```bash
+    $ make down
+    ```
 
 ## Test NGINX Plus OIDC RP Implementation
 
