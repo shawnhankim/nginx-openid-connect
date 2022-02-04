@@ -10,13 +10,14 @@ This directory provides the details of each variable which is related to [IdP co
 ## Configuring OpenID-Provider(IdP) Metadata via Well-Known Endpoints
 Openid-configuration is a Well-known URI Discovery Mechanism for the Provider Configuration URI and is defined in OpenID Connect. The well-known endpoint returns OpenID Connect metadata about the authorization server. You could configure the following variables based on the well-known endpoint.
 
-| Variable                           | Description                                                   |
-|------------------------------------|---------------------------------------------------------------|
-| `$oidc_authz_endpoint`             | URL of the IdP's OAuth 2.0 Authorization Endpoint.            |
-| `$oidc_jwt_keyfile`                | URL of the IdP's JSON Web Key Set document.                   |
-| `$oidc_logout_endpoint`            | URL of the IdP's end_session endpoint.                        |
-| `$oidc_token_endpoint`             | URL of the IdP's OAuth 2.0 Token Endpoint.                    |
-| `$oidc_userinfo_endpoint`          | URL of the IdP's UserInfo Endpoint.                           |
+| Variable                           | Description                                                      |
+|------------------------------------|------------------------------------------------------------------|
+| `$oidc_authz_endpoint`             | URL of the IdP's OAuth 2.0 Authorization Endpoint.               |
+| `$oidc_jwt_keyfile`                | URL of the IdP's JSON Web Key Set document.                      |
+| `$oidc_logout_endpoint`            | URL of the IdP's end_session endpoint.                           |
+| `$oidc_token_endpoint`             | URL of the IdP's OAuth 2.0 Token Endpoint.                       |
+| `$oidc_userinfo_endpoint`          | URL of the IdP's UserInfo Endpoint.                              |
+| `$oidc_host`                       | URL of the IdP's application. e.g., `https://dev-xxxxx.okta.com` |
 | `$oidc_scopes`                     | List of the OAuth 2.0 scope values that this server supports. <br> e.g. `openid+profile+email+offline_access` |
 
 <br>
@@ -56,3 +57,4 @@ This is for customers to customize the Well-Known OIDC endpoints to pass vendor 
 | `$oidc_hmac_key`                   | Hash-based message authentication code (or HMAC) is a cryptographic technique that combines public keys, private keys, and a hash into a mix hackers can't unpack. <br> It should be unique for every NGINX instance/cluster. |
 | `$oidc_logout_redirect`            | URI to be redirected by the IdP after successful logout from the IdP. <br> This should be configured in your IdP.                             |
 | `$oidc_pkce_enable`                | PKCE is an OAuth 2.0 security extension for public clients on mobile devices or single page apps intended to avoid a malicious programme creeping into the same computer from intercepting the authorisation code. <br><br> `1`: Enable PKCE <br> `0`: Disable PKCE                                 |
+| `$oidc_app_name`                   | IdP's application name                                                                            |
