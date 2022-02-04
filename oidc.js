@@ -590,7 +590,7 @@ function getTokenArgs(r) {
 
 // Validate authorization code if it is correctly received from the IdP.
 function isValidAuthZCode(r) {
-    if (r.variables.arg_code.length == 0) {
+    if (r.variables.arg_code == undefined || r.variables.arg_code.length == 0) {
         if (r.variables.arg_error) {
             r.error('OIDC error receiving AuthZ code from IdP: ' +
                 r.variables.arg_error_description);
