@@ -58,6 +58,9 @@ services:
         source: ./
         target: /etc/nginx/conf.d/
       - type: bind
+        source: ./docker/build-context/nginx/test/
+        target: /etc/nginx/test/
+      - type: bind
         source: ./docker/build-context/content
         target: /usr/share/nginx/html/
     networks:

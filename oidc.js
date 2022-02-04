@@ -31,8 +31,9 @@ export default {
     logout,
     redirectPostLogin,
     redirectPostLogout,
+    testAccessTokenPayload,
     testExtractToken,
-    validateIdToken,
+    testIdTokenPayload,
     validateAccessToken,
     validateSession
 };
@@ -811,6 +812,18 @@ function isValidXClientId(r) {
     return true
 }
 
+// Return JWT header and payload
+function jwt(r, token) {
+    var parts = token.split('.').slice(0,2)
+        .map(v=>Buffer.from(v, 'base64url').toString())
+        .map(JSON.parse);
+    return { 
+        headers: parts[0], 
+        payload: parts[1] 
+    };
+}
+
+
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
  *                                                                             *
  *                      3. Common Functions for Testing                        *
@@ -836,4 +849,24 @@ function testExtractToken (r) {
 
     var body = msg + '}\n';
     r.return(200, body);
+}
+
+// Test for extracting sub, subgroups (custom claim) from token
+function testTokenBodyWithCustomClaim(r, token) {
+    var res = jwt(r, token)
+    var msgToken = `"token": "` + token + `"`
+    var msgSub = `"sub": "` + res.payload.sub + `"`
+    var msgSubGroups = `"subgroups": "` + res.payload.subgroups + `"`
+    var body = `{` + msgToken + `,` + msgSub + `,` + msgSubGroups + `}`
+    return body
+}
+
+// Return access token details with custom claim for testing
+function testAccessTokenPayload(r) {
+    r.return(200, testTokenBodyWithCustomClaim(r, r.variables.access_token))
+}
+
+// Return ID token details with custom claim for testing
+function testIdTokenPayload(r) {
+    r.return(200, testTokenBodyWithCustomClaim(r, r.variables.id_token))
 }
