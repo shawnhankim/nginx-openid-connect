@@ -8,7 +8,7 @@
 var ERR_CFG_VARS              = 'OIDC missing configuration variables: ';
 var ERR_AC_TOKEN              = 'OIDC Access Token validation error: ';
 var ERR_ID_TOKEN              = 'OIDC ID Token validation error: ';
-var ERR_IDP_AUTH              = 'OIDC unexpected response from IdP when sending AuthZ code (HTTP ';
+var ERR_IDP_AUTH              = 'OIDC unexpected response from IdP in code exchange';
 var ERR_TOKEN_RES             = 'OIDC AuthZ code sent but token response is not JSON. ';
 var ERR_X_CLIENT_ID_COOKIE    = 'X-Client-Id should be in cookie';
 var ERR_X_CLIENT_ID_NOT_FOUND = 'X-Client-Id not found in the IdP app';
@@ -34,6 +34,7 @@ export default {
     testAccessTokenPayload,
     testExtractToken,
     testIdTokenPayload,
+    validateIdToken,
     validateAccessToken,
     validateSession
 };
@@ -412,16 +413,17 @@ function handleTokenErrorResponse(r, res) {
         return isErr;
     }
     if (res.status != 200) {
+        var statusMsg = '(' + res.status + '). ';
         try {
             var errset = JSON.parse(res.responseBody);
             if (errset.error) {
                 r.error('OIDC error from IdP when sending AuthZ code: ' +
                     errset.error + ', ' + errset.error_description);
             } else {
-                r.error(ERR_IDP_AUTH + res.status + '). ' + res.responseBody);
+                r.error(ERR_IDP_AUTH + statusMsg + res.responseBody);
             }
         } catch (e) {
-            r.error(ERR_IDP_AUTH + res.status + '). ' + res.responseBody);
+            r.error(ERR_IDP_AUTH + statusMsg + res.responseBody);
         }
         r.return(502);
         return isErr;
@@ -729,7 +731,7 @@ function extractToken(r, key, is_bearer, validation_uri, msg) {
                 token = headers[1]
             } else {
                 msg += `, "` + key + `": "N/A"`;
-                return [true, msg]
+                return [true, msg];
             }
         } else {
             token = headers[0]
@@ -744,7 +746,7 @@ function extractToken(r, key, is_bearer, validation_uri, msg) {
     } catch (e) {
         msg += `, "` + key + `": "N/A"`;
     }
-    return [true, msg]
+    return [true, msg];
 }
 
 // Generate session ID using remote address, user agent, and client ID.

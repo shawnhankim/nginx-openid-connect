@@ -6,10 +6,10 @@ LABEL maintainer="NGINX Docker Maintainers <docker-maint@nginx.com>"
 # Uncomment this block and the versioned nginxPackages in the main RUN
 # instruction to install a specific release
 # https://docs.nginx.com/nginx/releases/
-ENV NGINX_VERSION 25
+ENV NGINX_VERSION 25 
 # https://nginx.org/en/docs/njs/changes.html
 ENV NJS_VERSION   0.6.2
-# https://plus-pkgs.nginx.com
+# https://plus-pkgs.nginx.com 1~bionic
 ENV PKG_RELEASE   1~bionic
 
 ## Install Nginx Plus
@@ -17,10 +17,9 @@ ENV PKG_RELEASE   1~bionic
 # Download certificate and key from the customer portal https://account.f5.com/myf5
 # and copy to the build context and set correct permissions
 RUN  mkdir -p /etc/ssl/nginx
-COPY docker/build-context/ssl/nginx-repo.* /etc/ssl/nginx/
+COPY docker/build-context/ssl/nginx-repo.crt /etc/ssl/nginx/nginx-repo.crt
+COPY docker/build-context/ssl/nginx-repo.key /etc/ssl/nginx/nginx-repo.key
 
-# COPY etc/ssl/nginx/nginx-repo.crt /etc/ssl/nginx/nginx-repo.crt
-# COPY etc/ssl/nginx/nginx-repo.key /etc/ssl/nginx/nginx-repo.key
 RUN set -x \
     && chmod 644 /etc/ssl/nginx/* \
     # Create nginx user/group first, to be consistent throughout Docker variants
@@ -175,17 +174,18 @@ RUN set -x \
     && apt-get remove --purge --auto-remove -y gnupg lsb-release apt-utils \  
     && rm -rf /var/lib/apt/lists/* /etc/apt/sources.list.d/nginx-plus.list \
     && rm -rf /etc/apt/apt.conf.d/90nginx \
-    && rm -rf nginx_signing.key \
-    # Remove the cert/keys from the image
-    && rm /etc/ssl/nginx/nginx-repo.crt /etc/ssl/nginx/nginx-repo.key
+    && rm -rf nginx_signing.key 
+# Remove the cert/keys from the image
+# && rm /etc/ssl/nginx/nginx-repo.crt /etc/ssl/nginx/nginx-repo.key
 
 # Optional: COPY over any of your SSL certs for HTTPS servers
-# e.g.
+# For example, 
 #COPY etc/ssl/my-nginx.example.com.crt /etc/ssl/my-nginx.example.com.crt
 #COPY etc/ssl/my-nginx.example.com.key /etc/ssl/my-nginx.example.com.key
 
 RUN    mkdir -p /etc/nginx/conf.d                           \
     && mkdir -p /usr/share/nginx/html/css                   \
+    && mkdir -p /var/lib/nginx/state                        \
     && mkdir -p /etc/controller-agent/configurator/auxfiles
 
 VOLUME /usr/share/nginx/html
