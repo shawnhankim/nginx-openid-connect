@@ -1,28 +1,28 @@
 version: '3.4'
 
-networks: 
+networks:
   mynetwork:
     name: mynetwork
-    attachable: true    
+    attachable: true
 
 services:
 
   postgres:
-      container_name: idp-db
-      image: postgres:12.0
-      volumes:
-        - type: bind
-          source: ./docker/build-context/data
-          target: /var/lib/postgresql/data
-      environment:
-        POSTGRES_DB: keycloak
-        POSTGRES_USER: keycloak
-        POSTGRES_PASSWORD: password
-      ports:
-        - 5432:5432
-      networks:
-       - mynetwork
-        
+    container_name: idp-db
+    image: postgres:12.0
+    volumes:
+      - type: bind
+        source: ./docker/build-context/data
+        target: /var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: keycloak
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: password
+    ports:
+      - 5432:5432
+    networks:
+      - mynetwork
+
   keycloak:
     container_name: idp-keycloak
     image: jboss/keycloak:15.1.0

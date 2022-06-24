@@ -1,5 +1,6 @@
 *.crt
 *.key
+*.jwt
 *.json
 oidc_credentials.conf
 .DS_Store
